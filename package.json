@@ -1,7 +1,8 @@
 {
   "name": "auto-cr-cmd",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.3",
+  "description": "旨在帮助开发团队在代码合并或提交时快速进行智能化审查，提升代码质量与开发效率。",
+  "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -29,7 +30,7 @@
   "sideEffects": false,
   "dependencies": {
     "@babel/core": "^7.28.4",
-    "auto-cr-rules": "1.0.9",
+    "auto-cr-rules": "1.0.11",
     "commander": "^14.0.0",
     "consola": "^3.4.2"
   },
