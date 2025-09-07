@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-cmd",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "旨在帮助开发团队在代码合并或提交时快速进行智能化审查，提升代码质量与开发效率。",
   "type": "commonjs",
   "main": "./dist/index.js",

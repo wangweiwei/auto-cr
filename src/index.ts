@@ -46,7 +46,8 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
 
     let plugins
     if (ruleDir?.length) {
-      plugins = getAllFiles(path.resolve(__dirname, ruleDir ?? ''), [], ['.js'])
+      const ruleFullDir = path.resolve(__dirname, ruleDir ?? '')
+      plugins = getAllFiles(ruleFullDir, [], ['.js'])
         .map((file) => {
           const fileName = file.split('/').reverse()[0]
           if (fileName !== 'index.js' && fileName !== 'types.js') {
