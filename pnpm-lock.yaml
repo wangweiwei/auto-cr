@@ -12,8 +12,8 @@ importers:
         specifier: ^7.28.4
         version: 7.28.4
       auto-cr-rules:
-        specifier: 1.0.12
-        version: 1.0.12
+        specifier: ^1.0.13
+        version: 1.0.13
       commander:
         specifier: ^14.0.0
         version: 14.0.0
@@ -345,8 +345,8 @@ packages:
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
-  auto-cr-rules@1.0.12:
-    resolution: {integrity: sha512-XdPT9tqoNG22YBj+VCDXo8aUKcu2QV2/uhtQ6wG2hrxNJ2Wj4PgMXd/O7k53fYv/aJhukIKvhnjPxxmxrR0mmw==}
+  auto-cr-rules@1.0.13:
+    resolution: {integrity: sha512-bJkDoO/CW9NlxxVPFob4pCPB0hZwjksi7c2B11Sil4iJzoEuHmxk7KVMI7QJsxSnacbBuI1QDYXhYSu95NK77w==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -1181,7 +1181,7 @@ snapshots:
 
   argparse@2.0.1: {}
 
-  auto-cr-rules@1.0.12:
+  auto-cr-rules@1.0.13:
     dependencies:
       '@babel/core': 7.28.4
     transitivePeerDependencies:
