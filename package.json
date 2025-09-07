@@ -1,0 +1,53 @@
+{
+  "name": "auto-cr",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "check": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "cli": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build",
+    "format": "prettier --write src"
+  },
+  "keywords": [
+    "auto",
+    "cr",
+    "code",
+    "review"
+  ],
+  "author": "wangweiwei",
+  "license": "MIT",
+  "sideEffects": false,
+  "dependencies": {
+    "@babel/core": "^7.28.4",
+    "auto-cr-rules": "1.0.9",
+    "commander": "^14.0.0",
+    "consola": "^3.4.2"
+  },
+  "devDependencies": {
+    "@babel/types": "^7.28.4",
+    "@eslint/js": "^9.35.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/node": "^24.3.1",
+    "eslint": "^9.35.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.3.0",
+    "jiti": "^2.5.1",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0"
+  },
+  "packageManager": "pnpm@10.15.1"
+}
