@@ -1,4 +1,4 @@
-# auto-cr-cmd
+# auto-cr-cmd(Auto Code Review Command)
 
 ## 概述
 auto-cr-cmd是一个基于 AST（抽象语法树）分析的命令行工具，用于检查代码是否符合预定义的规则集。它支持灵活定制规则，并可集成到 CI/CD 流程中，助力团队实现代码质量的自动化管控
