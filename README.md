@@ -58,5 +58,5 @@ npx auto-cr-cmd -r xxxx/rules xxx/src
 ## 贡献方式
 欢迎提交 Issue 或 Pull Request：
 * Fork 本项目
-* 为auto-cr-rules添加新规则或优化现有规则
+* 为[auto-cr-rules](https://github.com/wangweiwei/auto-cr-rules)添加新规则或优化现有规则
 * 测试通过后提交 PR
