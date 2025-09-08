@@ -1,7 +1,7 @@
 {
   "name": "auto-cr-cmd",
-  "version": "1.0.9",
-  "description": "旨在帮助开发团队在代码合并或提交时快速进行智能化审查，提升代码质量与开发效率。",
+  "version": "1.0.11",
+  "description": "auto-cr-cmd是一个基于 AST（抽象语法树）分析的命令行工具，用于检查代码是否符合预定义的规则集。它支持灵活定制规则，并可集成到 CI/CD 流程中，助力团队实现代码质量的自动化管控",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
