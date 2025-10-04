@@ -112,8 +112,8 @@ module.exports = { rules: [ruleA, ruleB] }
 ### 4. 运行
 
 ```bash
-pnpm run build
-npx auto-cr-cmd --language zh --rule-dir ./examples/custom-rules -- ./examples/src
+cd examples
+npx auto-cr-cmd --language en --rule-dir ./examples/custom-rules -- ./src
 ```
 
 ## 项目结构

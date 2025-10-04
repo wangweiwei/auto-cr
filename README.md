@@ -112,7 +112,8 @@ module.exports = { rules: [ruleA, ruleB] }
 ### 4. Run It
 
 ```bash
-npx auto-cr-cmd --language en --rule-dir ./examples/custom-rules -- ./examples/src
+cd examples
+npx auto-cr-cmd --language en --rule-dir ./examples/custom-rules -- ./src
 ```
 
 ## Project Layout
