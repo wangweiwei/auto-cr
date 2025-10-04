@@ -1,6 +1,6 @@
-const { defineRule } = require('../../packages/auto-cr-rules/dist')
+const { defineRule, RuleSeverity } = require('../../packages/auto-cr-rules/dist')
 
-module.exports = defineRule('no-index-import', ({ helpers, language }) => {
+module.exports = defineRule('no-index-import', {severity: RuleSeverity.Warning }, ({ helpers, language }) => {
   for (const ref of helpers.imports) {
     if (ref.value.endsWith('/index')) {
       const message =

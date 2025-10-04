@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-rules",
-  "version": "2.0.15",
+  "version": "2.0.19",
   "description": "Extensible static analysis rule set for the auto-cr automated code review toolkit",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
@@ -27,6 +27,15 @@
     "developer-tools"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wangweiwei/auto-cr.git",
+    "directory": "packages/auto-cr-rules"
+  },
+  "homepage": "https://github.com/wangweiwei/auto-cr#readme",
+  "bugs": {
+    "url": "https://github.com/wangweiwei/auto-cr/issues"
+  },
   "sideEffects": false,
   "dependencies": {
     "@swc/types": "^0.1.25"

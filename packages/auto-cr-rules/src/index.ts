@@ -8,6 +8,7 @@ export type {
   RuleMessages,
   RuleReporter,
 } from './types'
+export { RuleSeverity } from './types'
 export { defineRule, isRule, toRule } from './types'
 export { createRuleContext } from './runtime'
 export type { RuleContextOptions } from './runtime'

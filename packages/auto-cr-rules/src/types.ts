@@ -8,6 +8,12 @@ export interface RuleReporter {
   errorAtLine(line: number | undefined, message: string): void
 }
 
+export enum RuleSeverity {
+  Error = 'error',
+  Warning = 'warning',
+  Optimizing = 'optimizing',
+}
+
 export interface ImportReference {
   kind: 'static' | 'dynamic' | 'require'
   value: string
@@ -37,11 +43,13 @@ export interface RuleContext {
 
 export interface RuleMetadata {
   tag?: string
+  severity?: RuleSeverity
 }
 
 export interface Rule {
   name: string
   tag?: string
+  severity?: RuleSeverity
   run(context: RuleContext): void | Promise<void>
 }
 
@@ -69,6 +77,7 @@ export function defineRule(
   return {
     name,
     ...metadata,
+    severity: metadata.severity ?? RuleSeverity.Error,
     run: runner,
   }
 }
@@ -80,19 +89,26 @@ export const isRule = (value: unknown): value is Rule => {
     typeof (value as { name?: unknown }).name === 'string' &&
     typeof (value as { run?: unknown }).run === 'function' &&
     (typeof (value as { tag?: unknown }).tag === 'undefined' ||
-      typeof (value as { tag?: unknown }).tag === 'string')
+      typeof (value as { tag?: unknown }).tag === 'string') &&
+    (typeof (value as { severity?: unknown }).severity === 'undefined' ||
+      (typeof (value as { severity?: unknown }).severity === 'string' &&
+        Object.values(RuleSeverity).includes((value as { severity?: unknown }).severity as RuleSeverity)))
   )
 }
 
 export const toRule = (value: unknown, origin: string): Rule | null => {
   if (isRule(value)) {
-    return value
+    return {
+      severity: value.severity ?? RuleSeverity.Error,
+      ...value,
+    }
   }
 
   if (typeof value === 'function') {
     const fn = value as (context: RuleContext) => void | Promise<void>
     return {
       name: fn.name || origin,
+      severity: RuleSeverity.Error,
       run: fn,
     }
   }

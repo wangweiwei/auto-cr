@@ -1,10 +1,11 @@
 import type { Span } from '@swc/types'
+import { RuleSeverity } from 'auto-cr-rules'
 import type { Rule, RuleReporter } from 'auto-cr-rules'
 import consola from 'consola'
 import { getTranslator } from '../i18n'
 
 export interface Reporter extends RuleReporter {
-  forRule(rule: Pick<Rule, 'name' | 'tag'>): RuleReporter
+  forRule(rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter
   flush(): void
 }
 
@@ -14,35 +15,48 @@ interface SpanCarrier {
 
 type LineOffsets = number[]
 
+type Severity = RuleSeverity
+
 interface ViolationRecord {
   line?: number
   message: string
   ruleName: string
+  severity: Severity
 }
 
 const UNTAGGED_TAG = 'untagged'
+const severityLoggers: Record<Severity, (message?: unknown, ...args: unknown[]) => void> = {
+  [RuleSeverity.Error]: consola.error,
+  [RuleSeverity.Warning]: consola.warn,
+  [RuleSeverity.Optimizing]: consola.info,
+}
 
 export function createReporter(filePath: string, source: string): Reporter {
   const offsets = buildLineOffsets(source)
   const t = getTranslator()
-  const errorLabel = t.reporterErrorLabel()
   const records = new Map<string, ViolationRecord[]>()
 
-  const pushRecord = (tag: string, ruleName: string, message: string, line?: number): void => {
+  const pushRecord = (
+    tag: string,
+    ruleName: string,
+    message: string,
+    severity: Severity,
+    line?: number
+  ): void => {
     if (!records.has(tag)) {
       records.set(tag, [])
     }
 
-    records.get(tag)!.push({ line, message, ruleName })
+    records.get(tag)!.push({ line, message, ruleName, severity })
   }
 
-  const makeStore = (tag: string, ruleName: string) => {
+  const makeStore = (tag: string, ruleName: string, severity: Severity) => {
     return (message: string, line?: number): void => {
-      pushRecord(tag, ruleName, message, line)
+      pushRecord(tag, ruleName, message, severity, line)
     }
   }
 
-  const generalStore = makeStore(UNTAGGED_TAG, 'general')
+  const generalStore = makeStore(UNTAGGED_TAG, 'general', RuleSeverity.Error)
 
   const error = (message: string): void => {
     generalStore(message)
@@ -64,9 +78,10 @@ export function createReporter(filePath: string, source: string): Reporter {
     errorAtLine(line, message)
   }
 
-  const buildRuleReporter = (rule: Pick<Rule, 'name' | 'tag'>): RuleReporter => {
+  const buildRuleReporter = (rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter => {
     const tag = rule.tag ?? UNTAGGED_TAG
-    const store = makeStore(tag, rule.name)
+    const severity = rule.severity ?? RuleSeverity.Error
+    const store = makeStore(tag, rule.name, severity)
 
     const scopedError = (message: string): void => {
       store(message)
@@ -118,7 +133,9 @@ export function createReporter(filePath: string, source: string): Reporter {
       violations.forEach((violation) => {
         const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
         const ruleSuffix = violation.ruleName ? ` (${violation.ruleName})` : ''
-        consola.error(`[${errorLabel}] ${location}${ruleSuffix} ${violation.message}`)
+        const severityLabel = t.reporterSeverityLabel({ severity: violation.severity })
+        const logger = getLoggerForSeverity(violation.severity)
+        logger(`[${severityLabel}] ${location}${ruleSuffix} ${violation.message}`)
       })
     })
 
@@ -129,6 +146,10 @@ export function createReporter(filePath: string, source: string): Reporter {
     forRule: buildRuleReporter,
     flush,
   }) as Reporter
+}
+
+function getLoggerForSeverity(severity: Severity): (message?: unknown, ...args: unknown[]) => void {
+  return severityLoggers[severity] ?? consola.error
 }
 
 function extractSpan(spanLike: Span | SpanCarrier | undefined): Span | undefined {

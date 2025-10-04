@@ -1,4 +1,4 @@
-import type { Language } from 'auto-cr-rules'
+import type { Language, RuleSeverity } from 'auto-cr-rules'
 
 interface Translator {
   noPathsProvided(): string
@@ -17,7 +17,7 @@ interface Translator {
   customRuleNoExport(params: { file: string }): string
   customRuleLoadFailed(params: { file: string }): string
   tsconfigReadFailed(): string
-  reporterErrorLabel(): string
+  reporterSeverityLabel(params: { severity: RuleSeverity }): string
   ruleTagLabel(params: { tag: string }): string
 }
 
@@ -39,13 +39,21 @@ const translations = {
     customRuleNoExport: ({ file }) => `规则文件未导出任何可用规则: ${file}`,
     customRuleLoadFailed: ({ file }) => `加载自定义规则失败: ${file}`,
     tsconfigReadFailed: () => '警告: 无法读取 tsconfig.json',
-    reporterErrorLabel: () => '错误',
+    reporterSeverityLabel: ({ severity }) => {
+      const labels: Record<RuleSeverity, string> = {
+        error: '错误',
+        warning: '警告',
+        optimizing: '优化建议',
+      }
+
+      return labels[severity]
+    },
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
         base: '基础规则',
         untagged: '未定义'
       }
-
+      
       return labels[tag] ?? tag
     },
   },
@@ -66,7 +74,15 @@ const translations = {
     customRuleNoExport: ({ file }) => `Rule file does not export any usable rules: ${file}`,
     customRuleLoadFailed: ({ file }) => `Failed to load custom rule: ${file}`,
     tsconfigReadFailed: () => 'Warning: Failed to read tsconfig.json',
-    reporterErrorLabel: () => 'ERROR',
+    reporterSeverityLabel: ({ severity }) => {
+      const labels: Record<RuleSeverity, string> = {
+        error: 'ERROR',
+        warning: 'WARNING',
+        optimizing: 'OPTIMIZING',
+      }
+
+      return labels[severity]
+    },
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
         base: 'Base Rules',

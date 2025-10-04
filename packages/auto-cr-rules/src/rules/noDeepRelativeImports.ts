@@ -1,8 +1,11 @@
-import { defineRule } from '../types'
+import { RuleSeverity, defineRule } from '../types'
 
 const MAX_DEPTH = 2
 
-export const noDeepRelativeImports = defineRule('no-deep-relative-imports', { tag: 'base' }, ({
+export const noDeepRelativeImports = defineRule(
+  'no-deep-relative-imports',
+  { tag: 'base', severity: RuleSeverity.Warning },
+  ({
   helpers,
   messages,
 }) => {
