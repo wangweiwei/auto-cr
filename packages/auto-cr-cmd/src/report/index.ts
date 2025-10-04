@@ -173,19 +173,12 @@ export function createReporter(filePath: string, source: string): Reporter {
       consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.description}`)
 
       if (violation.suggestions && violation.suggestions.length > 0) {
-        const labelPrefix = `${indent}${t.reporterSuggestionLabel()}: `
-        const continuationPrefix = ' '.repeat(labelPrefix.length)
+        const suggestionSeparator = language === 'zh' ? '； ' : ' | '
+        const suggestionLine = violation.suggestions
+          .map((suggestion) => t.reporterFormatSuggestion(suggestion))
+          .join(suggestionSeparator)
 
-        violation.suggestions.forEach((suggestion, suggestionIndex) => {
-          const suggestionText = t.reporterFormatSuggestion(suggestion)
-
-          if (suggestionIndex === 0) {
-            consola.log(`${labelPrefix}${suggestionText}`)
-            return
-          }
-
-          consola.log(`${continuationPrefix}${suggestionText}`)
-        })
+        consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
       }
     })
 

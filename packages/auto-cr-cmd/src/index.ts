@@ -65,6 +65,7 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
       await analyzeFile(file, rules)
     }
 
+    consola.log(' ')
     consola.success(t.scanComplete())
   } catch (error) {
     consola.error(t.scanError(), error instanceof Error ? error.message : error)
