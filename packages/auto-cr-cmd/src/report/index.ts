@@ -2,11 +2,21 @@ import type { Span } from '@swc/types'
 import { RuleSeverity } from 'auto-cr-rules'
 import type { Rule, RuleReporter } from 'auto-cr-rules'
 import consola from 'consola'
-import { getTranslator } from '../i18n'
+import { getLanguage, getTranslator } from '../i18n'
 
 export interface Reporter extends RuleReporter {
   forRule(rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter
-  flush(): void
+  flush(): ReporterSummary
+}
+
+interface ReporterSummary {
+  totalViolations: number
+  errorViolations: number
+  severityCounts: {
+    error: number
+    warning: number
+    optimizing: number
+  }
 }
 
 interface SpanCarrier {
@@ -17,11 +27,31 @@ type LineOffsets = number[]
 
 type Severity = RuleSeverity
 
-interface ViolationRecord {
+type SuggestionEntry = {
+  text: string
+  link?: string
+}
+
+interface ReporterRecordPayload {
+  description: string
+  code?: string
+  suggestions?: ReadonlyArray<SuggestionEntry>
+  span?: Span
   line?: number
-  message: string
+}
+
+interface ViolationRecord {
+  tag: string
   ruleName: string
   severity: Severity
+  message: string
+  line?: number
+  code?: string
+  suggestions?: ReadonlyArray<SuggestionEntry>
+}
+
+type CompatibleRuleReporter = RuleReporter & {
+  record?: (payload: ReporterRecordPayload) => void
 }
 
 const UNTAGGED_TAG = 'untagged'
@@ -34,36 +64,48 @@ const severityLoggers: Record<Severity, (message?: unknown, ...args: unknown[]) 
 export function createReporter(filePath: string, source: string): Reporter {
   const offsets = buildLineOffsets(source)
   const t = getTranslator()
-  const records = new Map<string, ViolationRecord[]>()
+  const language = getLanguage()
+  const records: ViolationRecord[] = []
 
-  const pushRecord = (
-    tag: string,
-    ruleName: string,
-    message: string,
-    severity: Severity,
-    line?: number
-  ): void => {
-    if (!records.has(tag)) {
-      records.set(tag, [])
-    }
-
-    records.get(tag)!.push({ line, message, ruleName, severity })
+  let totalViolations = 0
+  let errorViolations = 0
+  const severityCounts = {
+    error: 0,
+    warning: 0,
+    optimizing: 0,
   }
 
-  const makeStore = (tag: string, ruleName: string, severity: Severity) => {
-    return (message: string, line?: number): void => {
-      pushRecord(tag, ruleName, message, severity, line)
+  const pushRecord = (record: ViolationRecord): void => {
+    records.push(record)
+    totalViolations += 1
+
+    if (record.severity === RuleSeverity.Error) {
+      errorViolations += 1
+      severityCounts.error += 1
+    } else if (record.severity === RuleSeverity.Warning) {
+      severityCounts.warning += 1
+    } else if (record.severity === RuleSeverity.Optimizing) {
+      severityCounts.optimizing += 1
     }
   }
-
-  const generalStore = makeStore(UNTAGGED_TAG, 'general', RuleSeverity.Error)
 
   const error = (message: string): void => {
-    generalStore(message)
+    pushRecord({
+      tag: UNTAGGED_TAG,
+      ruleName: 'general',
+      severity: RuleSeverity.Error,
+      message,
+    })
   }
 
   const errorAtLine = (line: number | undefined, message: string): void => {
-    generalStore(message, line)
+    pushRecord({
+      tag: UNTAGGED_TAG,
+      ruleName: 'general',
+      severity: RuleSeverity.Error,
+      line,
+      message,
+    })
   }
 
   const errorAtSpan = (spanLike: Span | SpanCarrier | undefined, message: string): void => {
@@ -81,14 +123,30 @@ export function createReporter(filePath: string, source: string): Reporter {
   const buildRuleReporter = (rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter => {
     const tag = rule.tag ?? UNTAGGED_TAG
     const severity = rule.severity ?? RuleSeverity.Error
-    const store = makeStore(tag, rule.name, severity)
+
+    const store = (payload: {
+      message: string
+      line?: number
+      code?: string
+      suggestions?: ReadonlyArray<SuggestionEntry>
+    }): void => {
+      pushRecord({
+        tag,
+        ruleName: rule.name,
+        severity,
+        message: payload.message,
+        line: payload.line,
+        code: payload.code,
+        suggestions: payload.suggestions,
+      })
+    }
 
     const scopedError = (message: string): void => {
-      store(message)
+      store({ message })
     }
 
     const scopedErrorAtLine = (line: number | undefined, message: string): void => {
-      store(message, line)
+      store({ message, line })
     }
 
     const scopedErrorAtSpan = (spanLike: Span | SpanCarrier | undefined, message: string): void => {
@@ -103,43 +161,91 @@ export function createReporter(filePath: string, source: string): Reporter {
       scopedErrorAtLine(line, message)
     }
 
-    return {
+    const record = (payload: ReporterRecordPayload): void => {
+      const line = resolveLine(payload, offsets)
+      store({
+        message: payload.description,
+        line,
+        code: payload.code,
+        suggestions: payload.suggestions,
+      })
+    }
+
+    const reporterWithRecord: CompatibleRuleReporter = {
       error: scopedError,
       errorAtLine: scopedErrorAtLine,
       errorAtSpan: scopedErrorAtSpan,
+      record,
     }
+
+    return reporterWithRecord
   }
 
-  const flush = (): void => {
-    if (records.size === 0) {
-      return
+  const flush = (): ReporterSummary => {
+    const summary: ReporterSummary = {
+      totalViolations,
+      errorViolations,
+      severityCounts: {
+        error: severityCounts.error,
+        warning: severityCounts.warning,
+        optimizing: severityCounts.optimizing,
+      },
     }
 
-    let firstTag = true
+    if (records.length === 0) {
+      resetCounters()
+      return summary
+    }
 
-    records.forEach((violations, tag) => {
-      if (violations.length === 0) {
-        return
-      }
-
-      if (!firstTag) {
-        consola.log('')
-      }
-
-      firstTag = false
-      const label = t.ruleTagLabel({ tag })
-      consola.info(`[${label}]`)
-
-      violations.forEach((violation) => {
-        const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
-        const ruleSuffix = violation.ruleName ? ` (${violation.ruleName})` : ''
-        const severityLabel = t.reporterSeverityLabel({ severity: violation.severity })
-        const logger = getLoggerForSeverity(violation.severity)
-        logger(`[${severityLabel}] ${location}${ruleSuffix} ${violation.message}`)
-      })
+    const locale = language === 'zh' ? 'zh-CN' : 'en-US'
+    const formatter = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
     })
 
-    records.clear()
+    const indent = '    '
+    const colon = language === 'zh' ? '：' : ':'
+    const headerGap = language === 'zh' ? '' : ' '
+
+    records.forEach((violation) => {
+      const timestamp = formatter.format(new Date())
+      const tagLabel = t.ruleTagLabel({ tag: violation.tag })
+      const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
+      const logger = getLoggerForSeverity(violation.severity)
+      const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
+      logger(header)
+
+      const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
+      consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
+      consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
+
+      if (violation.code) {
+        consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
+      }
+
+      if (violation.suggestions && violation.suggestions.length > 0) {
+        const suggestionSeparator = language === 'zh' ? '； ' : ' | '
+        const suggestionLine = violation.suggestions
+          .map((suggestion) => t.reporterFormatSuggestion(suggestion))
+          .join(suggestionSeparator)
+
+        consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
+      }
+    })
+
+    records.length = 0
+    resetCounters()
+    return summary
+  }
+
+  const resetCounters = (): void => {
+    totalViolations = 0
+    errorViolations = 0
+    severityCounts.error = 0
+    severityCounts.warning = 0
+    severityCounts.optimizing = 0
   }
 
   return Object.assign({ error, errorAtLine, errorAtSpan }, {
@@ -150,6 +256,18 @@ export function createReporter(filePath: string, source: string): Reporter {
 
 function getLoggerForSeverity(severity: Severity): (message?: unknown, ...args: unknown[]) => void {
   return severityLoggers[severity] ?? consola.error
+}
+
+function resolveLine(record: ReporterRecordPayload, offsets: LineOffsets): number | undefined {
+  if (typeof record.line === 'number') {
+    return record.line
+  }
+
+  if (record.span) {
+    return offsetToLine(record.span.start, offsets)
+  }
+
+  return undefined
 }
 
 function extractSpan(spanLike: Span | SpanCarrier | undefined): Span | undefined {

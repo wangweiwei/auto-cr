@@ -12,19 +12,34 @@ import { builtinRules, createRuleContext } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
 
-async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
+interface ScanSummary {
+  scannedFiles: number
+  filesWithErrors: number
+  filesWithWarnings: number
+  filesWithOptimizing: number
+}
+
+interface FileSeveritySummary {
+  error: number
+  warning: number
+  optimizing: number
+}
+
+type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
+
+async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSummary> {
   const t = getTranslator()
 
   try {
     if (filePaths.length === 0) {
       consola.info(t.noPathsProvided())
-      return
+      return { scannedFiles: 0, filesWithErrors: 0, filesWithWarnings: 0, filesWithOptimizing: 0 }
     }
 
     const validPaths = filePaths.filter((candidate) => checkPathExists(candidate))
     if (validPaths.length === 0) {
       consola.error(t.allPathsMissing())
-      return
+      return { scannedFiles: 0, filesWithErrors: 0, filesWithWarnings: 0, filesWithOptimizing: 0 }
     }
 
     let allFiles: string[] = []
@@ -34,7 +49,6 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
       if (stat.isFile()) {
         allFiles.push(targetPath)
       } else if (stat.isDirectory()) {
-        consola.info(t.scanningDirectory({ path: targetPath }))
         const directoryFiles = getAllFiles(targetPath)
         allFiles = [...allFiles, ...directoryFiles]
       }
@@ -42,34 +56,59 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
 
     if (allFiles.length === 0) {
       consola.info(t.noFilesFound())
-      return
+      return { scannedFiles: 0, filesWithErrors: 0, filesWithWarnings: 0, filesWithOptimizing: 0 }
     }
 
+    const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts'))
     const customRules = loadCustomRules(ruleDir)
     const rules: Rule[] = [...builtinRules, ...customRules]
 
     if (rules.length === 0) {
       consola.warn(t.noRulesLoaded())
-      return
+      return {
+        scannedFiles: 0,
+        filesWithErrors: 0,
+        filesWithWarnings: 0,
+        filesWithOptimizing: 0,
+      }
     }
 
-    for (const file of allFiles) {
-      if (file.endsWith('.d.ts')) {
-        continue
+    let filesWithErrors = 0
+    let filesWithWarnings = 0
+    let filesWithOptimizing = 0
+
+    for (const file of scannableFiles) {
+      const summary = await analyzeFile(file, rules)
+
+      if (summary.severityCounts.error > 0) {
+        filesWithErrors += 1
       }
 
-      consola.info(t.scanningFile({ file }))
-      await analyzeFile(file, rules)
+      if (summary.severityCounts.warning > 0) {
+        filesWithWarnings += 1
+      }
+
+      if (summary.severityCounts.optimizing > 0) {
+        filesWithOptimizing += 1
+      }
     }
 
-    consola.success(t.scanComplete())
+    return {
+      scannedFiles: scannableFiles.length,
+      filesWithErrors,
+      filesWithWarnings,
+      filesWithOptimizing,
+    }
   } catch (error) {
-    consola.error(t.scanError(), error instanceof Error ? error.message : error)
-    process.exit(1)
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
-async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
+interface AnalyzeFileSummary {
+  severityCounts: FileSeveritySummary
+}
+
+async function analyzeFile(file: string, rules: Rule[]): Promise<AnalyzeFileSummary> {
   const source = readFile(file)
   const reporter = createReporter(file, source)
   const t = getTranslator()
@@ -81,7 +120,13 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
     ast = parseSync(source, parseOptions as unknown as Parameters<typeof parseSync>[1])
   } catch (error) {
     consola.error(t.parseFileFailed({ file }), error instanceof Error ? error.message : error)
-    return
+    return {
+      severityCounts: {
+        error: 1,
+        warning: 0,
+        optimizing: 0,
+      },
+    }
   }
 
   const language = getLanguage()
@@ -94,21 +139,42 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
   })
 
   const sharedHelpers = baseContext.helpers
-  type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
 
   for (const rule of rules) {
     try {
       const scopedReporter = reporter.forRule(rule)
+      const reporterWithRecord = scopedReporter as RuleReporter & {
+        record?: (record: ReporterRecordPayload) => void
+      }
 
       const helpers: RuleContext['helpers'] = {
         ...sharedHelpers,
-        reportViolation: (message: string, span?: ReporterSpanArg): void => {
-          if (span) {
-            scopedReporter.errorAtSpan(span, message)
-          } else {
-            scopedReporter.error(message)
+        reportViolation: ((input: unknown, span?: ReporterSpanArg): void => {
+          const normalized = normalizeViolationInput(input, span)
+
+          if (typeof reporterWithRecord.record === 'function') {
+            reporterWithRecord.record({
+              description: normalized.message,
+              code: normalized.code,
+              suggestions: normalized.suggestions,
+              span: normalized.span,
+              line: normalized.line,
+            })
+            return
           }
-        },
+
+          if (normalized.span) {
+            scopedReporter.errorAtSpan(normalized.span, normalized.message)
+            return
+          }
+
+          if (typeof normalized.line === 'number') {
+            scopedReporter.errorAtLine(normalized.line, normalized.message)
+            return
+          }
+
+          scopedReporter.error(normalized.message)
+        }) as RuleContext['helpers']['reportViolation'],
       }
 
       const context: RuleContext = {
@@ -126,7 +192,103 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
     }
   }
 
-  reporter.flush()
+  const summary = reporter.flush()
+
+  return {
+    severityCounts: summary.severityCounts,
+  }
+}
+
+interface NormalizedViolation {
+  message: string
+  span?: ReporterSpanArg
+  line?: number
+  code?: string
+  suggestions?: ReadonlyArray<SuggestionEntry>
+}
+
+interface ReporterRecordPayload {
+  description: string
+  code?: string
+  suggestions?: ReadonlyArray<SuggestionEntry>
+  span?: ReporterSpanArg
+  line?: number
+}
+
+type SuggestionEntry = {
+  text: string
+  link?: string
+}
+
+function normalizeViolationInput(
+  input: unknown,
+  spanArg?: ReporterSpanArg
+): NormalizedViolation {
+  if (typeof input === 'string') {
+    return {
+      message: input,
+      span: spanArg,
+    }
+  }
+
+  if (input && typeof input === 'object') {
+    const candidate = input as {
+      description?: unknown
+      message?: unknown
+      span?: ReporterSpanArg
+      line?: number
+      code?: unknown
+      suggestions?: unknown
+    }
+
+    const description =
+      typeof candidate.description === 'string'
+        ? candidate.description
+        : typeof candidate.message === 'string'
+          ? candidate.message
+          : undefined
+
+    const code = typeof candidate.code === 'string' ? candidate.code : undefined
+
+    let suggestions: ReadonlyArray<SuggestionEntry> | undefined
+    if (Array.isArray(candidate.suggestions)) {
+      const normalizedSuggestions: SuggestionEntry[] = []
+
+      for (const entry of candidate.suggestions) {
+        if (typeof entry === 'string') {
+          normalizedSuggestions.push({ text: entry })
+          continue
+        }
+
+        if (entry && typeof entry === 'object') {
+          const suggestion = entry as { text?: unknown; link?: unknown }
+          if (typeof suggestion.text === 'string') {
+            normalizedSuggestions.push({
+              text: suggestion.text,
+              link: typeof suggestion.link === 'string' ? suggestion.link : undefined,
+            })
+          }
+        }
+      }
+
+      if (normalizedSuggestions.length > 0) {
+        suggestions = normalizedSuggestions
+      }
+    }
+
+    return {
+      message: description ?? 'Rule violation detected.',
+      span: candidate.span ?? spanArg,
+      line: typeof candidate.line === 'number' ? candidate.line : undefined,
+      code,
+      suggestions,
+    }
+  }
+
+  return {
+    message: 'Rule violation detected.',
+    span: spanArg,
+  }
 }
 
 program
@@ -141,11 +303,29 @@ const filePaths = program.args.map((target: string) => path.resolve(process.cwd(
 ;(async () => {
   try {
     setLanguage(options.language ?? process.env.LANG)
-    await run(filePaths, options.ruleDir)
-    process.exit(0)
+    const summary = await run(filePaths, options.ruleDir)
+    const t = getTranslator()
+
+    if (summary.scannedFiles > 0) {
+      consola.log(' ')
+      const language = getLanguage()
+      const resultMessage = language.startsWith('zh')
+        ? ` ${t.scanComplete()}，本次共扫描${summary.scannedFiles}个文件，其中${summary.filesWithErrors}个文件存在错误，${summary.filesWithWarnings}个文件存在警告，${summary.filesWithOptimizing}个文件存在优化建议！`
+        : ` ${t.scanComplete()}, scanned ${summary.scannedFiles} files: ${summary.filesWithErrors} with errors, ${summary.filesWithWarnings} with warnings, ${summary.filesWithOptimizing} with optimizing hints!`
+
+      if (summary.filesWithErrors > 0) {
+        consola.success(resultMessage)
+        process.exit(1)
+      } else {
+        consola.success(resultMessage)
+        process.exit(0)
+      }
+    } else {
+      process.exit(0)
+    }
   } catch (error) {
     const t = getTranslator()
-    consola.error(t.unexpectedError(), error)
+    consola.error(t.scanError(), error instanceof Error ? error.message : error)
     process.exit(1)
   }
 })()

@@ -6,6 +6,7 @@ export interface RuleReporter {
   error(message: string): void
   errorAtSpan(span: Span | undefined, message: string): void
   errorAtLine(line: number | undefined, message: string): void
+  record?(record: RuleReporterRecord): void
 }
 
 export enum RuleSeverity {
@@ -13,6 +14,30 @@ export enum RuleSeverity {
   Warning = 'warning',
   Optimizing = 'optimizing',
 }
+
+export interface RuleSuggestion {
+  text: string
+  link?: string
+}
+
+export interface RuleReporterRecord {
+  description: string
+  code?: string
+  suggestions?: ReadonlyArray<RuleSuggestion>
+  span?: Span
+  line?: number
+}
+
+export interface RuleViolationInit {
+  description?: string
+  message?: string
+  code?: string
+  suggestions?: ReadonlyArray<RuleSuggestion>
+  span?: Span
+  line?: number
+}
+
+export type RuleViolationInput = string | RuleViolationInit
 
 export interface ImportReference {
   kind: 'static' | 'dynamic' | 'require'
@@ -28,7 +53,7 @@ export interface RuleHelpers {
   readonly imports: ReadonlyArray<ImportReference>
   isRelativePath(value: string): boolean
   relativeDepth(value: string): number
-  reportViolation(message: string, span?: Span): void
+  reportViolation(input: RuleViolationInput, span?: Span): void
 }
 
 export interface RuleContext {

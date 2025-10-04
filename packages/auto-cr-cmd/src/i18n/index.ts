@@ -18,6 +18,12 @@ interface Translator {
   customRuleLoadFailed(params: { file: string }): string
   tsconfigReadFailed(): string
   reporterSeverityLabel(params: { severity: RuleSeverity }): string
+  reporterSeverityIcon(params: { severity: RuleSeverity }): string
+  reporterFileLabel(): string
+  reporterCodeLabel(): string
+  reporterDescriptionLabel(): string
+  reporterSuggestionLabel(): string
+  reporterFormatSuggestion(params: { text: string; link?: string }): string
   ruleTagLabel(params: { tag: string }): string
 }
 
@@ -47,6 +53,26 @@ const translations = {
       }
 
       return labels[severity]
+    },
+    reporterSeverityIcon: ({ severity }) => {
+      const icons: Record<RuleSeverity, string> = {
+        error: '❌',
+        warning: '⚠️',
+        optimizing: '⚡️',
+      }
+
+      return icons[severity]
+    },
+    reporterFileLabel: () => '文件位置',
+    reporterCodeLabel: () => '错误代码',
+    reporterDescriptionLabel: () => '错误描述',
+    reporterSuggestionLabel: () => '优化建议',
+    reporterFormatSuggestion: ({ text, link }) => {
+      if (!link) {
+        return text
+      }
+
+      return `${text}（链接: ${link}）`
     },
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
@@ -82,6 +108,26 @@ const translations = {
       }
 
       return labels[severity]
+    },
+    reporterSeverityIcon: ({ severity }) => {
+      const icons: Record<RuleSeverity, string> = {
+        error: '❌',
+        warning: '⚠️',
+        optimizing: '⚡️',
+      }
+
+      return icons[severity]
+    },
+    reporterFileLabel: () => 'File',
+    reporterCodeLabel: () => 'Code',
+    reporterDescriptionLabel: () => 'Description',
+    reporterSuggestionLabel: () => 'Suggestion',
+    reporterFormatSuggestion: ({ text, link }) => {
+      if (!link) {
+        return text
+      }
+
+      return `${text} (Link: ${link})`
     },
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {

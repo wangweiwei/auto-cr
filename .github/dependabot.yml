@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule: { interval: "daily" }
+
+  - package-ecosystem: "npm"
+    directory: "/packages/auto-cr-cmd"
+    schedule: { interval: "daily" }
+
+  - package-ecosystem: "npm"
+    directory: "/packages/auto-cr-rules"
+    schedule: { interval: "daily" }
