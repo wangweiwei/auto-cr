@@ -1,12 +1,22 @@
 import type { Span } from '@swc/types'
 import { RuleSeverity } from 'auto-cr-rules'
-import type { Rule, RuleReporter, RuleReporterRecord, RuleSuggestion } from 'auto-cr-rules'
+import type { Rule, RuleReporter } from 'auto-cr-rules'
 import consola from 'consola'
 import { getLanguage, getTranslator } from '../i18n'
 
 export interface Reporter extends RuleReporter {
   forRule(rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter
-  flush(): void
+  flush(): ReporterSummary
+}
+
+interface ReporterSummary {
+  totalViolations: number
+  errorViolations: number
+  severityCounts: {
+    error: number
+    warning: number
+    optimizing: number
+  }
 }
 
 interface SpanCarrier {
@@ -17,14 +27,31 @@ type LineOffsets = number[]
 
 type Severity = RuleSeverity
 
-interface ViolationRecord {
-  tag: string
-  line?: number
+type SuggestionEntry = {
+  text: string
+  link?: string
+}
+
+interface ReporterRecordPayload {
   description: string
   code?: string
-  suggestions?: ReadonlyArray<RuleSuggestion>
+  suggestions?: ReadonlyArray<SuggestionEntry>
+  span?: Span
+  line?: number
+}
+
+interface ViolationRecord {
+  tag: string
   ruleName: string
   severity: Severity
+  message: string
+  line?: number
+  code?: string
+  suggestions?: ReadonlyArray<SuggestionEntry>
+}
+
+type CompatibleRuleReporter = RuleReporter & {
+  record?: (payload: ReporterRecordPayload) => void
 }
 
 const UNTAGGED_TAG = 'untagged'
@@ -40,8 +67,26 @@ export function createReporter(filePath: string, source: string): Reporter {
   const language = getLanguage()
   const records: ViolationRecord[] = []
 
+  let totalViolations = 0
+  let errorViolations = 0
+  const severityCounts = {
+    error: 0,
+    warning: 0,
+    optimizing: 0,
+  }
+
   const pushRecord = (record: ViolationRecord): void => {
     records.push(record)
+    totalViolations += 1
+
+    if (record.severity === RuleSeverity.Error) {
+      errorViolations += 1
+      severityCounts.error += 1
+    } else if (record.severity === RuleSeverity.Warning) {
+      severityCounts.warning += 1
+    } else if (record.severity === RuleSeverity.Optimizing) {
+      severityCounts.optimizing += 1
+    }
   }
 
   const error = (message: string): void => {
@@ -49,7 +94,7 @@ export function createReporter(filePath: string, source: string): Reporter {
       tag: UNTAGGED_TAG,
       ruleName: 'general',
       severity: RuleSeverity.Error,
-      description: message,
+      message,
     })
   }
 
@@ -58,8 +103,8 @@ export function createReporter(filePath: string, source: string): Reporter {
       tag: UNTAGGED_TAG,
       ruleName: 'general',
       severity: RuleSeverity.Error,
-      description: message,
       line,
+      message,
     })
   }
 
@@ -80,16 +125,16 @@ export function createReporter(filePath: string, source: string): Reporter {
     const severity = rule.severity ?? RuleSeverity.Error
 
     const store = (payload: {
-      description: string
+      message: string
       line?: number
       code?: string
-      suggestions?: ReadonlyArray<RuleSuggestion>
+      suggestions?: ReadonlyArray<SuggestionEntry>
     }): void => {
       pushRecord({
         tag,
         ruleName: rule.name,
         severity,
-        description: payload.description,
+        message: payload.message,
         line: payload.line,
         code: payload.code,
         suggestions: payload.suggestions,
@@ -97,11 +142,11 @@ export function createReporter(filePath: string, source: string): Reporter {
     }
 
     const scopedError = (message: string): void => {
-      store({ description: message })
+      store({ message })
     }
 
     const scopedErrorAtLine = (line: number | undefined, message: string): void => {
-      store({ description: message, line })
+      store({ message, line })
     }
 
     const scopedErrorAtSpan = (spanLike: Span | SpanCarrier | undefined, message: string): void => {
@@ -116,27 +161,40 @@ export function createReporter(filePath: string, source: string): Reporter {
       scopedErrorAtLine(line, message)
     }
 
-    const record = (violation: RuleReporterRecord): void => {
-      const line = resolveLine(violation, offsets)
+    const record = (payload: ReporterRecordPayload): void => {
+      const line = resolveLine(payload, offsets)
       store({
-        description: violation.description,
+        message: payload.description,
         line,
-        code: violation.code,
-        suggestions: violation.suggestions,
+        code: payload.code,
+        suggestions: payload.suggestions,
       })
     }
 
-    return {
+    const reporterWithRecord: CompatibleRuleReporter = {
       error: scopedError,
       errorAtLine: scopedErrorAtLine,
       errorAtSpan: scopedErrorAtSpan,
       record,
     }
+
+    return reporterWithRecord
   }
 
-  const flush = (): void => {
+  const flush = (): ReporterSummary => {
+    const summary: ReporterSummary = {
+      totalViolations,
+      errorViolations,
+      severityCounts: {
+        error: severityCounts.error,
+        warning: severityCounts.warning,
+        optimizing: severityCounts.optimizing,
+      },
+    }
+
     if (records.length === 0) {
-      return
+      resetCounters()
+      return summary
     }
 
     const locale = language === 'zh' ? 'zh-CN' : 'en-US'
@@ -151,7 +209,7 @@ export function createReporter(filePath: string, source: string): Reporter {
     const colon = language === 'zh' ? '：' : ':'
     const headerGap = language === 'zh' ? '' : ' '
 
-    records.forEach((violation, index) => {
+    records.forEach((violation) => {
       const timestamp = formatter.format(new Date())
       const tagLabel = t.ruleTagLabel({ tag: violation.tag })
       const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
@@ -161,12 +219,11 @@ export function createReporter(filePath: string, source: string): Reporter {
 
       const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
       consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
+      consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
 
       if (violation.code) {
         consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
       }
-
-      consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.description}`)
 
       if (violation.suggestions && violation.suggestions.length > 0) {
         const suggestionSeparator = language === 'zh' ? '； ' : ' | '
@@ -179,6 +236,16 @@ export function createReporter(filePath: string, source: string): Reporter {
     })
 
     records.length = 0
+    resetCounters()
+    return summary
+  }
+
+  const resetCounters = (): void => {
+    totalViolations = 0
+    errorViolations = 0
+    severityCounts.error = 0
+    severityCounts.warning = 0
+    severityCounts.optimizing = 0
   }
 
   return Object.assign({ error, errorAtLine, errorAtSpan }, {
@@ -191,13 +258,13 @@ function getLoggerForSeverity(severity: Severity): (message?: unknown, ...args: 
   return severityLoggers[severity] ?? consola.error
 }
 
-function resolveLine(violation: RuleReporterRecord, offsets: LineOffsets): number | undefined {
-  if (typeof violation.line === 'number') {
-    return violation.line
+function resolveLine(record: ReporterRecordPayload, offsets: LineOffsets): number | undefined {
+  if (typeof record.line === 'number') {
+    return record.line
   }
 
-  if (violation.span) {
-    return offsetToLine(violation.span.start, offsets)
+  if (record.span) {
+    return offsetToLine(record.span.start, offsets)
   }
 
   return undefined
