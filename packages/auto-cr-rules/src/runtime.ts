@@ -1,7 +1,14 @@
 import type { Module } from '@swc/types'
 import { collectImportReferences } from './imports'
 import { createRuleMessages } from './messages'
-import type { Language, RuleContext, RuleHelpers, RuleReporter } from './types'
+import type {
+  Language,
+  RuleContext,
+  RuleHelpers,
+  RuleReporter,
+  RuleReporterRecord,
+  RuleViolationInput,
+} from './types'
 
 export interface RuleContextOptions {
   ast: Module
@@ -40,13 +47,30 @@ const createRuleHelpers = (reporter: RuleReporter, imports: ReturnType<typeof co
     return (value.match(/\.\.\//g) || []).length
   }
 
-  const reportViolation = (message: string, span?: Parameters<RuleReporter['errorAtSpan']>[0]): void => {
-    if (span) {
-      reporter.errorAtSpan(span, message)
+  const reportViolation = (
+    input: RuleViolationInput,
+    spanArg?: Parameters<RuleReporter['errorAtSpan']>[0]
+  ): void => {
+    const normalized = normalizeViolationInput(input, spanArg)
+
+    if (typeof reporter.record === 'function') {
+      reporter.record(normalized)
       return
     }
 
-    reporter.error(message)
+    const targetSpan = normalized.span
+
+    if (targetSpan) {
+      reporter.errorAtSpan(targetSpan, normalized.description)
+      return
+    }
+
+    if (typeof normalized.line === 'number') {
+      reporter.errorAtLine(normalized.line, normalized.description)
+      return
+    }
+
+    reporter.error(normalized.description)
   }
 
   return {
@@ -54,5 +78,27 @@ const createRuleHelpers = (reporter: RuleReporter, imports: ReturnType<typeof co
     isRelativePath,
     relativeDepth,
     reportViolation,
+  }
+}
+
+function normalizeViolationInput(
+  input: RuleViolationInput,
+  fallbackSpan?: Parameters<RuleReporter['errorAtSpan']>[0]
+): RuleReporterRecord {
+  if (typeof input === 'string') {
+    return {
+      description: input,
+      span: fallbackSpan,
+    }
+  }
+
+  const description = input.description ?? input.message
+
+  return {
+    description: description ?? 'Rule violation detected.',
+    code: input.code,
+    suggestions: input.suggestions,
+    span: input.span ?? fallbackSpan,
+    line: input.line,
   }
 }

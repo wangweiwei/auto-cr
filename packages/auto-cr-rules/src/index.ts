@@ -7,6 +7,9 @@ export type {
   RuleHelpers,
   RuleMessages,
   RuleReporter,
+  RuleReporterRecord,
+  RuleSuggestion,
+  RuleViolationInput,
 } from './types'
 export { RuleSeverity } from './types'
 export { defineRule, isRule, toRule } from './types'

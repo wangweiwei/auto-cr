@@ -10,7 +10,13 @@ import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { readFile, getAllFiles, checkPathExists } from './utils/file'
 import { builtinRules, createRuleContext } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
-import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
+import type {
+  Rule,
+  RuleContext,
+  RuleReporter,
+  RuleReporterRecord,
+  RuleViolationInput,
+} from 'auto-cr-rules'
 
 async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
   const t = getTranslator()
@@ -34,7 +40,6 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
       if (stat.isFile()) {
         allFiles.push(targetPath)
       } else if (stat.isDirectory()) {
-        consola.info(t.scanningDirectory({ path: targetPath }))
         const directoryFiles = getAllFiles(targetPath)
         allFiles = [...allFiles, ...directoryFiles]
       }
@@ -57,8 +62,6 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
       if (file.endsWith('.d.ts')) {
         continue
       }
-
-      consola.info(t.scanningFile({ file }))
       await analyzeFile(file, rules)
     }
 
@@ -94,7 +97,6 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
   })
 
   const sharedHelpers = baseContext.helpers
-  type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
 
   for (const rule of rules) {
     try {
@@ -102,12 +104,25 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
 
       const helpers: RuleContext['helpers'] = {
         ...sharedHelpers,
-        reportViolation: (message: string, span?: ReporterSpanArg): void => {
-          if (span) {
-            scopedReporter.errorAtSpan(span, message)
-          } else {
-            scopedReporter.error(message)
+        reportViolation: (input: RuleViolationInput, span?: ReporterSpanArg): void => {
+          const normalized = normalizeViolationInputForCli(input, span)
+
+          if (typeof scopedReporter.record === 'function') {
+            scopedReporter.record(normalized)
+            return
           }
+
+          if (normalized.span) {
+            scopedReporter.errorAtSpan(normalized.span, normalized.description)
+            return
+          }
+
+          if (typeof normalized.line === 'number') {
+            scopedReporter.errorAtLine(normalized.line, normalized.description)
+            return
+          }
+
+          scopedReporter.error(normalized.description)
         },
       }
 
@@ -127,6 +142,30 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
   }
 
   reporter.flush()
+}
+
+type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
+
+function normalizeViolationInputForCli(
+  input: RuleViolationInput,
+  spanArg?: ReporterSpanArg
+): RuleReporterRecord {
+  if (typeof input === 'string') {
+    return {
+      description: input,
+      span: spanArg,
+    }
+  }
+
+  const description = input.description ?? input.message
+
+  return {
+    description: description ?? 'Rule violation detected.',
+    code: input.code,
+    suggestions: input.suggestions,
+    span: input.span ?? spanArg,
+    line: input.line,
+  }
 }
 
 program
