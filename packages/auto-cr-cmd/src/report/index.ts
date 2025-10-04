@@ -152,10 +152,6 @@ export function createReporter(filePath: string, source: string): Reporter {
     const headerGap = language === 'zh' ? '' : ' '
 
     records.forEach((violation, index) => {
-      if (index > 0) {
-        consola.log('')
-      }
-
       const timestamp = formatter.format(new Date())
       const tagLabel = t.ruleTagLabel({ tag: violation.tag })
       const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
