@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/wangweiwei/auto-cr">
-    <img src="https://raw.githubusercontent.com/wangweiwei/auto-cr/refs/heads/feat/v2.0/assets/images/image.png" alt="auto-cr logo" width="60" />
+    <img src="https://github.com/wangweiwei/auto-cr/blob/main/assets/images/image.png?raw=true" alt="auto-cr logo" width="60" />
   </a>
 </p>
 
