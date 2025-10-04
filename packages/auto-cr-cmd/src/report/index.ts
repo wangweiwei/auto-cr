@@ -164,17 +164,16 @@ export function createReporter(filePath: string, source: string): Reporter {
       logger(header)
 
       const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
-      consola.log(`${indent}${t.reporterFileLabel()} : ${location}`)
+      consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
 
       if (violation.code) {
-        consola.log(`${indent}${t.reporterCodeLabel()} : ${violation.code}`)
+        consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
       }
 
-      consola.log(`${indent}${t.reporterDescriptionLabel()} : ${violation.description}`)
+      consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.description}`)
 
       if (violation.suggestions && violation.suggestions.length > 0) {
-        consola.log('')
-        const labelPrefix = `${indent}${t.reporterSuggestionLabel()} : `
+        const labelPrefix = `${indent}${t.reporterSuggestionLabel()}: `
         const continuationPrefix = ' '.repeat(labelPrefix.length)
 
         violation.suggestions.forEach((suggestion, suggestionIndex) => {
