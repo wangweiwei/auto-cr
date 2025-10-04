@@ -17,8 +17,8 @@ importers:
         specifier: ^1.13.20
         version: 1.13.20
       auto-cr-rules:
-        specifier: ^2.0.20
-        version: 2.0.20
+        specifier: ^2.0.22
+        version: 2.0.22
       commander:
         specifier: ^14.0.0
         version: 14.0.1
@@ -27,8 +27,8 @@ importers:
         version: 3.4.2
     devDependencies:
       '@eslint/js':
-        specifier: ^9.35.0
-        version: 9.36.0
+        specifier: ^9.37.0
+        version: 9.37.0
       '@swc/types':
         specifier: ^0.1.25
         version: 0.1.25
@@ -110,6 +110,10 @@ packages:
 
   '@eslint/js@9.36.0':
     resolution: {integrity: sha512-uhCbYtYynH30iZErszX78U+nR3pJU3RHGQ57NXy5QupD4SBVwDeU8TNBy+MjMngc1UyIW9noKqsRqfjQTBU2dw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@eslint/js@9.37.0':
+    resolution: {integrity: sha512-jaS+NJ+hximswBG6pjNX0uEJZkrT0zwpVi3BA3vX22aFGjJjmgSTSmPpZCRKmoBL5VY/M6p0xsSJx7rk7sy5gg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/object-schema@2.1.6':
@@ -347,8 +351,8 @@ packages:
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
-  auto-cr-rules@2.0.20:
-    resolution: {integrity: sha512-/LyMllKKyrjnMBTn+V5iv9BYgGpodQPaWFVNlYm5umQLs5irOG/iDm9v3OddlA8k6mEBn5A+uyf40XKa4NY1Ig==}
+  auto-cr-rules@2.0.22:
+    resolution: {integrity: sha512-JomW87lpz5i1XT1kKZEqbjmtxyF60DOMWebGau/QdinfcdmC358D4WG+3227gCkwKbcL4Hj0UcnJ0po5fs1A4A==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -815,6 +819,8 @@ snapshots:
 
   '@eslint/js@9.36.0': {}
 
+  '@eslint/js@9.37.0': {}
+
   '@eslint/object-schema@2.1.6': {}
 
   '@eslint/plugin-kit@0.3.5':
@@ -1044,7 +1050,7 @@ snapshots:
 
   argparse@2.0.1: {}
 
-  auto-cr-rules@2.0.20:
+  auto-cr-rules@2.0.22:
     dependencies:
       '@swc/types': 0.1.25
 
