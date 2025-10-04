@@ -1,7 +1,7 @@
 {
   "name": "auto-cr-cmd",
   "version": "2.0.1",
-  "description": "",
+  "description": "Fast automated code review CLI powered by SWC-based static analysis",
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "bin": {
@@ -11,7 +11,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --build tsconfig.json --force",
+    "build": "tsc --build tsconfig.json",
+    "build:force": "tsc --build tsconfig.json --force",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "cli": "ts-node src/index.ts",
@@ -20,16 +21,21 @@
     "format": "prettier --write src"
   },
   "keywords": [
-    "auto",
-    "cr",
-    "code",
-    "review"
+    "auto-cr",
+    "code-review",
+    "static-analysis",
+    "cli",
+    "linting",
+    "typescript",
+    "javascript",
+    "developer-tools"
   ],
   "author": "wangweiwei",
   "license": "MIT",
   "sideEffects": false,
   "dependencies": {
     "@swc/core": "^1.13.20",
+    "@swc/wasm": "^1.13.20",
     "auto-cr-rules": "workspace:*",
     "commander": "^14.0.0",
     "consola": "^3.4.2"

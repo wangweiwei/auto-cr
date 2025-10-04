@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r run build",
+    "build:force": "pnpm -r run build:force",
     "dev": "pnpm --filter auto-cr-cmd run dev",
     "format": "pnpm --filter auto-cr-cmd run format",
     "cli": "pnpm --filter auto-cr-cmd run cli",

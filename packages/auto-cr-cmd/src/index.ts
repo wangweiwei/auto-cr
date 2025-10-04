@@ -3,14 +3,14 @@ import { consola } from 'consola'
 import fs from 'fs'
 import path from 'path'
 import { program } from 'commander'
-import { parseSync } from '@swc/core'
+import { parseSync } from '@swc/wasm'
 import { loadParseOptions } from './config'
 import { createReporter } from './report'
 import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { readFile, getAllFiles, checkPathExists } from './utils/file'
 import { builtinRules, createRuleContext } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
-import type { Rule } from 'auto-cr-rules'
+import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
 
 async function run(filePaths: string[] = [], ruleDir?: string): Promise<void> {
   const t = getTranslator()
@@ -78,7 +78,7 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
 
   try {
     const parseOptions = loadParseOptions(file)
-    ast = parseSync(source, parseOptions)
+    ast = parseSync(source, parseOptions as unknown as Parameters<typeof parseSync>[1])
   } catch (error) {
     consola.error(t.parseFileFailed({ file }), error instanceof Error ? error.message : error)
     return
@@ -93,9 +93,31 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
     language,
   })
 
+  const sharedHelpers = baseContext.helpers
+  type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
+
   for (const rule of rules) {
     try {
-      await rule.run(baseContext)
+      const scopedReporter = reporter.forRule(rule)
+
+      const helpers: RuleContext['helpers'] = {
+        ...sharedHelpers,
+        reportViolation: (message: string, span?: ReporterSpanArg): void => {
+          if (span) {
+            scopedReporter.errorAtSpan(span, message)
+          } else {
+            scopedReporter.error(message)
+          }
+        },
+      }
+
+      const context: RuleContext = {
+        ...baseContext,
+        reporter: scopedReporter,
+        helpers,
+      }
+
+      await rule.run(context)
     } catch (error) {
       consola.error(
         t.ruleExecutionFailed({ ruleName: rule.name, file }),
@@ -103,6 +125,8 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<void> {
       )
     }
   }
+
+  reporter.flush()
 }
 
 program

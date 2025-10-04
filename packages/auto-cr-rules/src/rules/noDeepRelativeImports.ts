@@ -2,7 +2,7 @@ import { defineRule } from '../types'
 
 const MAX_DEPTH = 2
 
-export const noDeepRelativeImports = defineRule('no-deep-relative-imports', ({
+export const noDeepRelativeImports = defineRule('no-deep-relative-imports', { tag: 'base' }, ({
   helpers,
   messages,
 }) => {
