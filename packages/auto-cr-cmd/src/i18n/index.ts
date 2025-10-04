@@ -43,6 +43,7 @@ const translations = {
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
         base: '基础规则',
+        untagged: '未定义'
       }
 
       return labels[tag] ?? tag
@@ -69,6 +70,7 @@ const translations = {
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
         base: 'Base Rules',
+        untagged: 'untagged'
       }
 
       return labels[tag] ?? tag
