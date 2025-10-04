@@ -17,7 +17,7 @@
 
 > 🔧 auto-cr-rules 提供可扩展的静态分析规则集与 SDK，帮你零成本定制企业级代码审查策略。
 
-📘 Prefer English? Read the [English README](./README.md).
+📘 Prefer English? Read the [English README](https://github.com/wangweiwei/auto-cr/blob/main/README.md).
 
 
 ## 特性亮点（自动化代码审查 & 静态代码分析）

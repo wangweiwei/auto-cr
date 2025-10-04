@@ -17,7 +17,7 @@
 >
 > 🔧 auto-cr-rules provides an extensible static analysis rule set and SDK so you can tailor enterprise-grade review policies with minimal effort.
 
-📘 Prefer Chinese? Read the [Chinese README](./README.zh-CN.md).
+📘 Prefer Chinese? Read the [Chinese README](https://github.com/wangweiwei/auto-cr/blob/main/README.zh-CN.md).
 
 
 ## Feature Highlights (Automated Code Review & Static Analysis)
