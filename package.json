@@ -8,8 +8,8 @@
     "format": "pnpm --filter auto-cr-cmd run format",
     "cli": "pnpm --filter auto-cr-cmd run cli",
     "version": "node scripts/bump-version.mjs",
-    "publish:rules": "pnpm --filter auto-cr-rules run publish",
-    "publish:cmd": "pnpm --filter auto-cr-cmd run publish",
+    "publish:rules": "pnpm --filter auto-cr-rules run release",
+    "publish:cmd": "pnpm --filter auto-cr-cmd run release",
     "publish": "pnpm run version && pnpm run build && pnpm run publish:rules && pnpm run publish:cmd"
   },
   "packageManager": "pnpm@10.15.1"

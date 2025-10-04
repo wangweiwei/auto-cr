@@ -12,6 +12,8 @@
 # build outputs
 /dist
 /packages/*/dist
+/packages/*/README.md
+/packages/*/README.zh-CN.md
 
 # debug
 npm-debug.log*

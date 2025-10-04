@@ -28,6 +28,11 @@ const updatePackage = (packageName, nextVersion) => {
   const packagePath = join(WORKSPACE_ROOT, 'packages', packageName, 'package.json')
   const content = JSON.parse(readFileSync(packagePath, 'utf-8'))
   content.version = nextVersion
+
+  if (packageName === 'auto-cr-cmd' && content.dependencies?.['auto-cr-rules']) {
+    content.dependencies['auto-cr-rules'] = `^${nextVersion}`
+  }
+
   writeFileSync(packagePath, `${JSON.stringify(content, null, 2)}\n`)
   return packagePath
 }

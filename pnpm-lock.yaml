@@ -17,7 +17,7 @@ importers:
         specifier: ^1.13.20
         version: 1.13.20
       auto-cr-rules:
-        specifier: workspace:*
+        specifier: ^2.0.6
         version: link:../auto-cr-rules
       commander:
         specifier: ^14.0.0

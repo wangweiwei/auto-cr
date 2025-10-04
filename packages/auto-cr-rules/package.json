@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-rules",
-  "version": "2.0.4",
+  "version": "2.0.15",
   "description": "Extensible static analysis rule set for the auto-cr automated code review toolkit",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
@@ -10,8 +10,11 @@
   "scripts": {
     "build": "tsc --build tsconfig.json",
     "build:force": "tsc --build tsconfig.json --force",
+    "postbuild": "node ../../scripts/readme-sync.mjs copy auto-cr-rules",
+    "postbuild:force": "node ../../scripts/readme-sync.mjs copy auto-cr-rules",
     "prepublishOnly": "pnpm run build",
-    "publish": "pnpm run build && npm publish --access public"
+    "release": "pnpm run build && npm publish --access public",
+    "postrelease": "node ../../scripts/readme-sync.mjs delayed-clean auto-cr-rules"
   },
   "keywords": [
     "auto-cr",
