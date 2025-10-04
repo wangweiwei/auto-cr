@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-rules",
-  "version": "2.0.7",
+  "version": "2.0.9",
   "description": "Extensible static analysis rule set for the auto-cr automated code review toolkit",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
@@ -11,7 +11,7 @@
     "build": "tsc --build tsconfig.json",
     "build:force": "tsc --build tsconfig.json --force",
     "prepublishOnly": "pnpm run build",
-    "publish": "pnpm run build && npm publish --access public"
+    "release": "pnpm run build && npm publish --access public"
   },
   "keywords": [
     "auto-cr",
