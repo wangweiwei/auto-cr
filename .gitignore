@@ -4,14 +4,30 @@
 
 # dependencies
 /node_modules
+/packages/*/node_modules
 
 # vscode
 .vscode
+
+# build outputs
+/dist
+/packages/*/dist
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
 
-# production
-/dist
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# tooling caches
+.eslintcache
+.turbo
+
+# ide
+.idea
+.history

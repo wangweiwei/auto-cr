@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { consola } from 'consola'
+import { getTranslator } from '../i18n'
 
 export const readFile = (path: string) => {
   return fs.readFileSync(path, 'utf-8')
@@ -38,7 +39,8 @@ export function getAllFiles(
  */
 export function checkPathExists(targetPath: string): boolean {
   if (!fs.existsSync(targetPath)) {
-    consola.error(`路径不存在: ${targetPath}`)
+    const t = getTranslator()
+    consola.error(t.pathNotExist({ path: targetPath }))
     return false
   }
   return true
