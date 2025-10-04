@@ -18,6 +18,7 @@ interface Translator {
   customRuleLoadFailed(params: { file: string }): string
   tsconfigReadFailed(): string
   reporterErrorLabel(): string
+  ruleTagLabel(params: { tag: string }): string
 }
 
 const translations = {
@@ -39,6 +40,13 @@ const translations = {
     customRuleLoadFailed: ({ file }) => `加载自定义规则失败: ${file}`,
     tsconfigReadFailed: () => '警告: 无法读取 tsconfig.json',
     reporterErrorLabel: () => '错误',
+    ruleTagLabel: ({ tag }) => {
+      const labels: Record<string, string> = {
+        base: '基础规则',
+      }
+
+      return labels[tag] ?? tag
+    },
   },
   en: {
     noPathsProvided: () => 'No file or directory paths provided; skipping scan',
@@ -58,6 +66,13 @@ const translations = {
     customRuleLoadFailed: ({ file }) => `Failed to load custom rule: ${file}`,
     tsconfigReadFailed: () => 'Warning: Failed to read tsconfig.json',
     reporterErrorLabel: () => 'ERROR',
+    ruleTagLabel: ({ tag }) => {
+      const labels: Record<string, string> = {
+        base: 'Base Rules',
+      }
+
+      return labels[tag] ?? tag
+    },
   },
 } satisfies Record<Language, Translator>
 

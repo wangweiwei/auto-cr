@@ -2,6 +2,7 @@ export type {
   ImportReference,
   Language,
   Rule,
+  RuleMetadata,
   RuleContext,
   RuleHelpers,
   RuleMessages,

@@ -125,9 +125,14 @@ export function loadParseOptions(filePath: string): ParseOptions {
     parserConfig = createTsParserConfig('.ts', compilerOptions, enableDecorators)
   }
 
-  return {
+  const options: ParseOptions = {
     ...parserConfig,
-    target,
     comments: true,
   }
+
+  if (target) {
+    options.target = target
+  }
+
+  return options
 }

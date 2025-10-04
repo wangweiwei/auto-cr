@@ -1,11 +1,11 @@
 import type { Span } from '@swc/types'
-import { getTranslator } from '../i18n'
+import type { Rule, RuleReporter } from 'auto-cr-rules'
 import consola from 'consola'
+import { getTranslator } from '../i18n'
 
-export interface Reporter {
-  error(message: string): void
-  errorAtSpan(span: Span | SpanCarrier | undefined, message: string): void
-  errorAtLine(line: number | undefined, message: string): void
+export interface Reporter extends RuleReporter {
+  forRule(rule: Pick<Rule, 'name' | 'tag'>): RuleReporter
+  flush(): void
 }
 
 interface SpanCarrier {
@@ -14,21 +14,42 @@ interface SpanCarrier {
 
 type LineOffsets = number[]
 
+interface ViolationRecord {
+  line?: number
+  message: string
+  ruleName: string
+}
+
+const UNTAGGED_TAG = 'untagged'
+
 export function createReporter(filePath: string, source: string): Reporter {
   const offsets = buildLineOffsets(source)
   const t = getTranslator()
   const errorLabel = t.reporterErrorLabel()
+  const records = new Map<string, ViolationRecord[]>()
+
+  const pushRecord = (tag: string, ruleName: string, message: string, line?: number): void => {
+    if (!records.has(tag)) {
+      records.set(tag, [])
+    }
+
+    records.get(tag)!.push({ line, message, ruleName })
+  }
+
+  const makeStore = (tag: string, ruleName: string) => {
+    return (message: string, line?: number): void => {
+      pushRecord(tag, ruleName, message, line)
+    }
+  }
+
+  const generalStore = makeStore(UNTAGGED_TAG, 'general')
 
   const error = (message: string): void => {
-    consola.error(`[${errorLabel}] ${filePath} ${message}`)
+    generalStore(message)
   }
 
   const errorAtLine = (line: number | undefined, message: string): void => {
-    if (typeof line === 'number') {
-      consola.error(`[${errorLabel}] ${filePath}:${line} ${message}`)
-    } else {
-      error(message)
-    }
+    generalStore(message, line)
   }
 
   const errorAtSpan = (spanLike: Span | SpanCarrier | undefined, message: string): void => {
@@ -43,7 +64,71 @@ export function createReporter(filePath: string, source: string): Reporter {
     errorAtLine(line, message)
   }
 
-  return { error, errorAtSpan, errorAtLine }
+  const buildRuleReporter = (rule: Pick<Rule, 'name' | 'tag'>): RuleReporter => {
+    const tag = rule.tag ?? UNTAGGED_TAG
+    const store = makeStore(tag, rule.name)
+
+    const scopedError = (message: string): void => {
+      store(message)
+    }
+
+    const scopedErrorAtLine = (line: number | undefined, message: string): void => {
+      store(message, line)
+    }
+
+    const scopedErrorAtSpan = (spanLike: Span | SpanCarrier | undefined, message: string): void => {
+      const span = extractSpan(spanLike)
+
+      if (!span) {
+        scopedError(message)
+        return
+      }
+
+      const line = offsetToLine(span.start, offsets)
+      scopedErrorAtLine(line, message)
+    }
+
+    return {
+      error: scopedError,
+      errorAtLine: scopedErrorAtLine,
+      errorAtSpan: scopedErrorAtSpan,
+    }
+  }
+
+  const flush = (): void => {
+    if (records.size === 0) {
+      return
+    }
+
+    let firstTag = true
+
+    records.forEach((violations, tag) => {
+      if (violations.length === 0) {
+        return
+      }
+
+      if (!firstTag) {
+        consola.log('')
+      }
+
+      firstTag = false
+      const label = t.ruleTagLabel({ tag })
+      consola.info(`[${label}]`)
+
+      violations.forEach((violation) => {
+        const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
+        const ruleSuffix = violation.ruleName ? ` (${violation.ruleName})` : ''
+        consola.error(`[${errorLabel}] ${location}${ruleSuffix} ${violation.message}`)
+      })
+    })
+
+    records.clear()
+  }
+
+  return Object.assign({ error, errorAtLine, errorAtSpan }, {
+    forRule: buildRuleReporter,
+    flush,
+  }) as Reporter
 }
 
 function extractSpan(spanLike: Span | SpanCarrier | undefined): Span | undefined {
