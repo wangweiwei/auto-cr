@@ -42,15 +42,70 @@ Common flags:
 
 - `--language <zh|en>`: Switch CLI output language (defaults to auto-detection).
 - `--rule-dir <directory>`: Load additional custom rules from a directory or package.
+- `--output <text|json>`: Choose between human-friendly text logs or structured JSON results (defaults to `text`).
 - `--help`: Display the full command reference.
 
 Sample output:
 
 ```text
-ℹ️ Scanning directory: ./src
-ℹ️ Scanning file: ./src/main.ts
-ℹ️ [Base Rules]
-✔ auto-cr scan complete
+ WARN  [12:56:18] ⚠️ [Base Rules]: no-deep-relative-imports
+
+    File: /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:2 
+    Description: Import path "../../../../shared/deep/utils" must not exceed max depth 2 
+    Code: ../../../../shared/deep/utils
+    Suggestion: Use a path alias (for example: @shared/deep/utils). | Create an index file at a higher level to re-export the module and shorten the import.
+
+ WARN  [12:56:18] ⚠️ [untagged]: no-index-import
+
+    File: /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:3
+    Description: Import ../../consts/index is not allowed. Import the concrete file instead.
+
+✔  Code scan complete, scanned 3 files: 0 with errors, 1 with warnings, 0 with optimizing hints! 
+```
+
+JSON output sample:
+
+```bash
+npx auto-cr-cmd --output json -- ./src | jq
+```
+
+```json
+{
+  "summary": {
+    "scannedFiles": 2,
+    "filesWithErrors": 1,
+    "filesWithWarnings": 0,
+    "filesWithOptimizing": 1,
+    "violationTotals": {
+      "total": 3,
+      "error": 2,
+      "warning": 0,
+      "optimizing": 1
+    }
+  },
+  "files": [
+    {
+      "filePath": "/workspace/src/example.ts",
+      "severityCounts": {
+        "error": 2,
+        "warning": 0,
+        "optimizing": 1
+      },
+      "totalViolations": 3,
+      "errorViolations": 2,
+      "violations": [
+        {
+          "tag": "imports",
+          "ruleName": "no-deep-relative-imports",
+          "severity": "error",
+          "message": "Avoid deep relative imports from src/components/button",
+          "line": 13
+        }
+      ]
+    }
+  ],
+  "notifications": []
+}
 ```
 
 ## Writing Custom Rules

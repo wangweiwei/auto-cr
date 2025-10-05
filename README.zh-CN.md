@@ -42,15 +42,70 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 
 - `--language <zh|en>`：切换 CLI 输出语言（默认为自动检测）。
 - `--rule-dir <directory>`：加载额外的自定义规则目录或包。
+- `--output <text|json>`：选择输出格式，`text` 为友好的终端日志，`json` 用于集成脚本（默认为 `text`）。
 - `--help`：查看完整命令说明。
 
 示例输出：
 
 ```text
-ℹ️ 扫描目录: ./src
-ℹ️ 扫描文件: ./src/main.ts
-ℹ️ [基础规则]   
-✔ auto-cr 代码扫描完成
+ WARN  [12:52:48] ⚠️ [基础规则]：no-deep-relative-imports 
+  
+    文件位置: .../dashboard.ts:2
+    错误描述: 导入路径 "../../../../shared/deep/utils"，不能超过最大层级2
+    错误代码: ../../../../shared/deep/utils
+    优化建议: 使用别名路径（如 @shared/deep/utils）； 或在上层聚合导出，避免过深相对路径。
+
+ WARN  [12:52:48] ⚠️ [未定义]：no-index-import
+
+    文件位置: .../dashboard.ts:3
+    错误描述: 禁止直接导入 ../../consts/index，请改用具体文件
+
+✔  代码扫描完成，本次共扫描3个文件，其中0个文件存在错误，1个文件存在警告，0个文件存在优化建议！
+```
+
+JSON 输出示例：
+
+```bash
+npx auto-cr-cmd --output json -- ./src | jq
+```
+
+```json
+{
+  "summary": {
+    "scannedFiles": 2,
+    "filesWithErrors": 1,
+    "filesWithWarnings": 0,
+    "filesWithOptimizing": 1,
+    "violationTotals": {
+      "total": 3,
+      "error": 2,
+      "warning": 0,
+      "optimizing": 1
+    }
+  },
+  "files": [
+    {
+      "filePath": "/workspace/src/example.ts",
+      "severityCounts": {
+        "error": 2,
+        "warning": 0,
+        "optimizing": 1
+      },
+      "totalViolations": 3,
+      "errorViolations": 2,
+      "violations": [
+        {
+          "tag": "imports",
+          "ruleName": "no-deep-relative-imports",
+          "severity": "error",
+          "message": "避免从 src/components/button 进行深层相对导入",
+          "line": 13
+        }
+      ]
+    }
+  ],
+  "notifications": []
+}
 ```
 
 ## 编写自定义规则
