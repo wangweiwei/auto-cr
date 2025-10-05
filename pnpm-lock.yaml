@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      auto-cr-rules:
+        specifier: ^2.0.30
+        version: 2.0.30
 
   packages/auto-cr-cmd:
     dependencies:
@@ -17,8 +21,8 @@ importers:
         specifier: ^1.13.20
         version: 1.13.20
       auto-cr-rules:
-        specifier: ^2.0.30
-        version: 2.0.30
+        specifier: workspace:^2.0.23
+        version: link:../auto-cr-rules
       commander:
         specifier: ^14.0.0
         version: 14.0.1
