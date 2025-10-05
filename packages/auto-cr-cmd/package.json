@@ -48,7 +48,7 @@
   "dependencies": {
     "@swc/core": "^1.13.20",
     "@swc/wasm": "^1.13.20",
-    "auto-cr-rules": "^2.0.23",
+    "auto-cr-rules": "workspace:^2.0.23",
     "commander": "^14.0.0",
     "consola": "^3.4.2"
   },

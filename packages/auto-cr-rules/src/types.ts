@@ -47,6 +47,7 @@ export interface ImportReference {
 
 export interface RuleMessages {
   noDeepRelativeImports(params: { value: string; maxDepth: number }): string
+  swallowedError(): string
 }
 
 export interface RuleHelpers {
