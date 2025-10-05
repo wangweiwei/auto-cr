@@ -1,6 +1,6 @@
 /**
  * 
- * 
+ * 多行注释
  * 
  */
 async function loadUserProfile(userId: string): Promise<void> {

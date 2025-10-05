@@ -1,135 +1,43 @@
-import type { CallExpression, MemberExpression, Module, Statement } from '@swc/types'
+import type { BlockStatement, Module, Statement, TryStatement } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
-
-const LOG_METHODS = new Set(['error', 'warn', 'info', 'log', 'fatal'])
-
-const isLoggingCall = (expression: CallExpression): boolean => {
-  const callee = expression.callee
-
-  if (callee.type === 'Identifier') {
-    const name = callee.value.toLowerCase()
-    return name.includes('log') || name.includes('error') || name.includes('report')
-  }
-
-  if (callee.type === 'MemberExpression') {
-    const member = callee as MemberExpression
-    const property = member.property
-
-    if (property.type === 'Identifier' && LOG_METHODS.has(property.value)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-const hasLoggingCall = (statements: Statement[]): boolean => {
-  for (const statement of statements) {
-    if (statement.type === 'ExpressionStatement' && statement.expression.type === 'CallExpression') {
-      if (isLoggingCall(statement.expression)) {
-        return true
-      }
-    }
-  }
-
-  return false
-}
-
-const containsThrowStatement = (node: unknown): boolean => {
-  const queue: unknown[] = [node]
-
-  while (queue.length > 0) {
-    const current = queue.pop()
-
-    if (!current || typeof current !== 'object') {
-      continue
-    }
-
-    const candidate = current as { type?: string }
-
-    if (candidate.type === 'ThrowStatement') {
-      return true
-    }
-
-    for (const value of Object.values(candidate)) {
-      queue.push(value)
-    }
-  }
-
-  return false
-}
-
-const visitTryStatements = (ast: Module, callback: (statement: Statement) => void): void => {
-  const queue: unknown[] = [ast]
-
-  while (queue.length > 0) {
-    const current = queue.pop()
-
-    if (!current || typeof current !== 'object') {
-      continue
-    }
-
-    const candidate = current as { type?: string }
-
-    if (candidate.type === 'TryStatement') {
-      callback(candidate as Statement)
-    }
-
-    for (const value of Object.values(candidate)) {
-      queue.push(value)
-    }
-  }
-}
 
 export const noSwallowedErrors = defineRule(
   'no-swallowed-errors',
   { tag: 'base', severity: RuleSeverity.Warning },
   ({ ast, helpers, messages, source }) => {
-    // Record the start of the module so we can normalise SWC's global byte offsets to file-local positions.
     const moduleStart = ast.span?.start ?? 0
     const lineIndex = buildLineIndex(source)
 
-    visitTryStatements(ast, (statement) => {
-      if (statement.type !== 'TryStatement') {
+    visitTryStatements(ast, (tryStatement) => {
+      const catchBlock = tryStatement.handler?.body ?? null
+      const finallyBlock = tryStatement.finalizer ?? null
+
+      const catchHasExecutable = catchBlock ? hasExecutableStatements(catchBlock.stmts) : false
+      const finallyHasExecutable = finallyBlock ? hasExecutableStatements(finallyBlock.stmts) : false
+
+      if (catchHasExecutable || finallyHasExecutable) {
         return
       }
 
-      const handler = statement.handler
+      const reportSpan = catchBlock?.span ?? finallyBlock?.span ?? tryStatement.span
+      const charIndex = bytePosToCharIndex(source, moduleStart, reportSpan.start)
+      const computedLine = resolveLine(lineIndex, charIndex)
+      const fallbackLine = determineFallbackLine({
+        source,
+        computedLine,
+        hasCatch: Boolean(catchBlock),
+        hasFinally: Boolean(finallyBlock),
+      })
+      const line = selectLineNumber(computedLine, fallbackLine)
 
-      if (!handler) {
-        return
-      }
-
-      const body = handler.body
-      const statements = body.stmts
-
-      const report = (): void => {
-        // Convert the body span to a line, then fall back to the literal catch line if the maths lands in comments.
-        const charIndex = bytePosToCharIndex(source, moduleStart, body.span.start)
-        const computedLine = resolveLine(lineIndex, charIndex)
-        const fallbackLine = findCatchLine(source, computedLine)
-        const line = selectLineNumber(computedLine, fallbackLine)
-        helpers.reportViolation(
-          {
-            description: messages.swallowedError(),
-            line,
-            span: body.span,
-          },
-          body.span
-        )
-      }
-
-      if (statements.length === 0) {
-        report()
-        return
-      }
-
-      const hasThrow = containsThrowStatement(statements)
-      const hasLogging = hasLoggingCall(statements)
-
-      if (!hasThrow && !hasLogging) {
-        report()
-      }
+      helpers.reportViolation(
+        {
+          description: messages.swallowedError(),
+          line,
+          span: reportSpan,
+        },
+        reportSpan
+      )
     })
   }
 )
@@ -139,7 +47,6 @@ type LineIndex = {
 }
 
 const buildLineIndex = (source: string): LineIndex => {
-  // Collect every newline. We share the helper with the import rule so behaviour stays consistent across detectors.
   const offsets: number[] = [0]
 
   for (let index = 0; index < source.length; index += 1) {
@@ -217,14 +124,34 @@ const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number
   return source.length
 }
 
-const findCatchLine = (source: string, computedLine?: number): number | undefined => {
+const determineFallbackLine = ({
+  source,
+  computedLine,
+  hasCatch,
+  hasFinally,
+}: {
+  source: string
+  computedLine?: number
+  hasCatch: boolean
+  hasFinally: boolean
+}): number | undefined => {
+  if (hasCatch) {
+    return findKeywordLine(source, computedLine, /\bcatch\b/)
+  }
+
+  if (hasFinally) {
+    return findKeywordLine(source, computedLine, /\bfinally\b/)
+  }
+
+  return findKeywordLine(source, computedLine, /\btry\b/)
+}
+
+const findKeywordLine = (source: string, computedLine: number | undefined, pattern: RegExp): number | undefined => {
   const lines = source.split(/\r?\n/)
   const startIndex = Math.max((computedLine ?? 1) - 1, 0)
-  const catchPattern = /\bcatch\b/
 
-  // Walk forward from the computed line so we land on the actual catch clause even if decorators or comments exist.
   for (let index = startIndex; index < lines.length; index += 1) {
-    if (catchPattern.test(lines[index])) {
+    if (pattern.test(lines[index])) {
       return index + 1
     }
   }
@@ -233,7 +160,6 @@ const findCatchLine = (source: string, computedLine?: number): number | undefine
 }
 
 const selectLineNumber = (computed?: number, fallback?: number): number | undefined => {
-  // Mirror the behaviour in the import rule: prefer the fallback when it is available and appears after the computed line.
   if (fallback === undefined) {
     return computed
   }
@@ -247,4 +173,41 @@ const selectLineNumber = (computed?: number, fallback?: number): number | undefi
   }
 
   return computed
+}
+
+const visitTryStatements = (ast: Module, callback: (statement: TryStatement) => void): void => {
+  const queue: unknown[] = [ast]
+
+  while (queue.length > 0) {
+    const current = queue.pop()
+
+    if (!current || typeof current !== 'object') {
+      continue
+    }
+
+    const candidate = current as { type?: string }
+
+    if (candidate.type === 'TryStatement') {
+      callback(candidate as TryStatement)
+    }
+
+    for (const value of Object.values(candidate)) {
+      queue.push(value)
+    }
+  }
+}
+
+const hasExecutableStatements = (statements: Statement[]): boolean => {
+  return statements.some(isExecutableStatement)
+}
+
+const isExecutableStatement = (statement: Statement): boolean => {
+  switch (statement.type) {
+    case 'EmptyStatement':
+      return false
+    case 'BlockStatement':
+      return hasExecutableStatements((statement as BlockStatement).stmts)
+    default:
+      return true
+  }
 }
