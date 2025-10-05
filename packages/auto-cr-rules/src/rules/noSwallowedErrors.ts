@@ -84,7 +84,10 @@ const visitTryStatements = (ast: Module, callback: (statement: Statement) => voi
 export const noSwallowedErrors = defineRule(
   'no-swallowed-errors',
   { tag: 'base', severity: RuleSeverity.Warning },
-  ({ ast, helpers, messages }) => {
+  ({ ast, helpers, messages, source }) => {
+    const moduleStart = ast.span?.start ?? 0
+    const lineIndex = buildLineIndex(source)
+
     visitTryStatements(ast, (statement) => {
       if (statement.type !== 'TryStatement') {
         return
@@ -99,11 +102,20 @@ export const noSwallowedErrors = defineRule(
       const body = handler.body
       const statements = body.stmts
 
+      const report = (): void => {
+        const line = resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, body.span.start))
+        helpers.reportViolation(
+          {
+            description: messages.swallowedError(),
+            line,
+            span: body.span,
+          },
+          body.span
+        )
+      }
+
       if (statements.length === 0) {
-        helpers.reportViolation({
-          description: messages.swallowedError(),
-          span: body.span,
-        })
+        report()
         return
       }
 
@@ -111,11 +123,88 @@ export const noSwallowedErrors = defineRule(
       const hasLogging = hasLoggingCall(statements)
 
       if (!hasThrow && !hasLogging) {
-        helpers.reportViolation({
-          description: messages.swallowedError(),
-          span: body.span,
-        })
+        report()
       }
     })
   }
 )
+
+type LineIndex = {
+  offsets: number[]
+}
+
+const buildLineIndex = (source: string): LineIndex => {
+  const offsets: number[] = [0]
+
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === '\n') {
+      offsets.push(index + 1)
+    }
+  }
+
+  return { offsets }
+}
+
+const resolveLine = ({ offsets }: LineIndex, position: number): number => {
+  let low = 0
+  let high = offsets.length - 1
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    const current = offsets[mid]
+
+    if (current === position) {
+      return mid + 1
+    }
+
+    if (current < position) {
+      low = mid + 1
+    } else {
+      high = mid - 1
+    }
+  }
+
+  return high + 1
+}
+
+const readUtf8Character = (source: string, index: number, code: number): { bytes: number; nextIndex: number } => {
+  if (code <= 0x7f) {
+    return { bytes: 1, nextIndex: index + 1 }
+  }
+
+  if (code <= 0x7ff) {
+    return { bytes: 2, nextIndex: index + 1 }
+  }
+
+  if (code >= 0xd800 && code <= 0xdbff && index + 1 < source.length) {
+    const next = source.charCodeAt(index + 1)
+    if (next >= 0xdc00 && next <= 0xdfff) {
+      return { bytes: 4, nextIndex: index + 2 }
+    }
+  }
+
+  return { bytes: 3, nextIndex: index + 1 }
+}
+
+const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number): number => {
+  if (bytePos <= moduleStart) {
+    return 0
+  }
+
+  let index = 0
+  let byteOffset = moduleStart
+
+  while (index < source.length) {
+    const code = source.charCodeAt(index)
+    const { bytes, nextIndex } = readUtf8Character(source, index, code)
+
+    if (byteOffset + bytes > bytePos) {
+      return index
+    }
+
+    byteOffset += bytes
+    index = nextIndex
+  }
+
+  return source.length
+}
