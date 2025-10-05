@@ -12,6 +12,11 @@ import { builtinRules, createRuleContext, RuleSeverity } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
 
+consola.options.formatOptions = {
+  ...consola.options.formatOptions,
+  date: false,
+}
+
 interface ScanSummary {
   scannedFiles: number
   filesWithErrors: number
