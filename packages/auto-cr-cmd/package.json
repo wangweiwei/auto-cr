@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-cmd",
-  "version": "2.0.31",
+  "version": "2.0.33",
   "description": "Fast automated code review CLI powered by SWC-based static analysis",
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
@@ -48,7 +48,7 @@
   "dependencies": {
     "@swc/core": "^1.13.20",
     "@swc/wasm": "^1.13.20",
-    "auto-cr-rules": "workspace:^2.0.23",
+    "auto-cr-rules": "^2.0.33",
     "commander": "^14.0.0",
     "consola": "^3.4.2"
   },
