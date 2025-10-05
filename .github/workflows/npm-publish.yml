@@ -6,20 +6,15 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     env:
       TAG_VERSION: ${{ github.ref_name }}
-      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.repository.default_branch }}
       - uses: pnpm/action-setup@v3
         with:
           version: 10.15.1
@@ -31,33 +26,9 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Align package versions with tag
-        run: pnpm run version
-      - name: Refresh lockfile
-        run: pnpm install --lockfile-only
-      - name: Commit version bump
-        id: commit
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add packages/auto-cr-rules/package.json packages/auto-cr-cmd/package.json pnpm-lock.yaml
-            git commit -m "chore: release ${TAG_VERSION}"
-            git tag -f "${TAG_VERSION}"
-            git push origin HEAD:"${DEFAULT_BRANCH}"
-            git push origin "${TAG_VERSION}" --force
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-            echo "No version changes detected; skipping commit"
-          fi
       - name: Build packages
         run: pnpm run build
-      - name: Publish auto-cr-rules
-        run: pnpm run publish:rules
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish auto-cr-cmd
-        run: pnpm run publish:cmd
+      - name: Publish packages
+        run: pnpm run publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
