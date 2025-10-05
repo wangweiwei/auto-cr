@@ -4,12 +4,18 @@ import type { Rule, RuleReporter } from 'auto-cr-rules'
 import consola from 'consola'
 import { getLanguage, getTranslator } from '../i18n'
 
+export type ReporterFormat = 'text' | 'json'
+
+interface ReporterOptions {
+  format?: ReporterFormat
+}
+
 export interface Reporter extends RuleReporter {
   forRule(rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter
   flush(): ReporterSummary
 }
 
-interface ReporterSummary {
+export interface ReporterSummary {
   totalViolations: number
   errorViolations: number
   severityCounts: {
@@ -17,6 +23,7 @@ interface ReporterSummary {
     warning: number
     optimizing: number
   }
+  violations: ReadonlyArray<ViolationRecord>
 }
 
 interface SpanCarrier {
@@ -40,7 +47,7 @@ interface ReporterRecordPayload {
   line?: number
 }
 
-interface ViolationRecord {
+export interface ViolationRecord {
   tag: string
   ruleName: string
   severity: Severity
@@ -55,17 +62,23 @@ type CompatibleRuleReporter = RuleReporter & {
 }
 
 const UNTAGGED_TAG = 'untagged'
+const DEFAULT_FORMAT: ReporterFormat = 'text'
 const severityLoggers: Record<Severity, (message?: unknown, ...args: unknown[]) => void> = {
   [RuleSeverity.Error]: consola.error,
   [RuleSeverity.Warning]: consola.warn,
   [RuleSeverity.Optimizing]: consola.info,
 }
 
-export function createReporter(filePath: string, source: string): Reporter {
+export function createReporter(
+  filePath: string,
+  source: string,
+  options: ReporterOptions = {}
+): Reporter {
   const offsets = buildLineOffsets(source)
   const t = getTranslator()
   const language = getLanguage()
   const records: ViolationRecord[] = []
+  const format = options.format ?? DEFAULT_FORMAT
 
   let totalViolations = 0
   let errorViolations = 0
@@ -182,6 +195,11 @@ export function createReporter(filePath: string, source: string): Reporter {
   }
 
   const flush = (): ReporterSummary => {
+    const violationSnapshot = records.map((record) => ({
+      ...record,
+      suggestions: record.suggestions ? [...record.suggestions] : undefined,
+    }))
+
     const summary: ReporterSummary = {
       totalViolations,
       errorViolations,
@@ -190,50 +208,48 @@ export function createReporter(filePath: string, source: string): Reporter {
         warning: severityCounts.warning,
         optimizing: severityCounts.optimizing,
       },
+      violations: violationSnapshot,
     }
 
-    if (records.length === 0) {
-      resetCounters()
-      return summary
+    if (violationSnapshot.length > 0 && format === 'text') {
+      const locale = language === 'zh' ? 'zh-CN' : 'en-US'
+      const formatter = new Intl.DateTimeFormat(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+
+      const indent = '    '
+      const colon = language === 'zh' ? '：' : ':'
+      const headerGap = language === 'zh' ? '' : ' '
+
+      violationSnapshot.forEach((violation) => {
+        const timestamp = formatter.format(new Date())
+        const tagLabel = t.ruleTagLabel({ tag: violation.tag })
+        const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
+        const logger = getLoggerForSeverity(violation.severity)
+        const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
+        logger(header)
+
+        const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
+        consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
+        consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
+
+        if (violation.code) {
+          consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
+        }
+
+        if (violation.suggestions && violation.suggestions.length > 0) {
+          const suggestionSeparator = language === 'zh' ? '； ' : ' | '
+          const suggestionLine = violation.suggestions
+            .map((suggestion) => t.reporterFormatSuggestion(suggestion))
+            .join(suggestionSeparator)
+
+          consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
+        }
+      })
     }
-
-    const locale = language === 'zh' ? 'zh-CN' : 'en-US'
-    const formatter = new Intl.DateTimeFormat(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
-
-    const indent = '    '
-    const colon = language === 'zh' ? '：' : ':'
-    const headerGap = language === 'zh' ? '' : ' '
-
-    records.forEach((violation) => {
-      const timestamp = formatter.format(new Date())
-      const tagLabel = t.ruleTagLabel({ tag: violation.tag })
-      const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
-      const logger = getLoggerForSeverity(violation.severity)
-      const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
-      logger(header)
-
-      const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
-      consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
-      consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
-
-      if (violation.code) {
-        consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
-      }
-
-      if (violation.suggestions && violation.suggestions.length > 0) {
-        const suggestionSeparator = language === 'zh' ? '； ' : ' | '
-        const suggestionLine = violation.suggestions
-          .map((suggestion) => t.reporterFormatSuggestion(suggestion))
-          .join(suggestionSeparator)
-
-        consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
-      }
-    })
 
     records.length = 0
     resetCounters()

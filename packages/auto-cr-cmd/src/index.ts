@@ -5,10 +5,10 @@ import path from 'path'
 import { program } from 'commander'
 import { parseSync } from '@swc/wasm'
 import { loadParseOptions } from './config'
-import { createReporter } from './report'
+import { createReporter, type ReporterFormat, type ViolationRecord } from './report'
 import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { readFile, getAllFiles, checkPathExists } from './utils/file'
-import { builtinRules, createRuleContext } from 'auto-cr-rules'
+import { builtinRules, createRuleContext, RuleSeverity } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
 
@@ -17,6 +17,14 @@ interface ScanSummary {
   filesWithErrors: number
   filesWithWarnings: number
   filesWithOptimizing: number
+  violationTotals: {
+    total: number
+    error: number
+    warning: number
+    optimizing: number
+  }
+  files: FileScanResult[]
+  notifications: Notification[]
 }
 
 interface FileSeveritySummary {
@@ -25,21 +33,97 @@ interface FileSeveritySummary {
   optimizing: number
 }
 
+interface FileScanResult {
+  filePath: string
+  severityCounts: FileSeveritySummary
+  totalViolations: number
+  errorViolations: number
+  violations: ReadonlyArray<ViolationRecord>
+}
+
+type OutputFormat = ReporterFormat
+
+type NotificationLevel = 'info' | 'warn' | 'error'
+
+interface Notification {
+  level: NotificationLevel
+  message: string
+  detail?: string
+}
+
+type Logger = (level: NotificationLevel, message: string, detail?: unknown) => void
+
 type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
 
-async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSummary> {
+const consolaLoggers = {
+  info: consola.info.bind(consola),
+  warn: consola.warn.bind(consola),
+  error: consola.error.bind(consola),
+} as const
+
+async function run(
+  filePaths: string[] = [],
+  ruleDir: string | undefined,
+  format: OutputFormat
+): Promise<ScanSummary> {
   const t = getTranslator()
+  const notifications: Notification[] = []
+
+  const log: Logger = (level, message, detail) => {
+    let detailText: string | undefined
+
+    if (detail !== undefined) {
+      if (detail instanceof Error) {
+        detailText = detail.message
+      } else if (typeof detail === 'string') {
+        detailText = detail
+      } else {
+        try {
+          detailText = JSON.stringify(detail)
+        } catch {
+          detailText = String(detail)
+        }
+      }
+    }
+
+    notifications.push({ level, message, detail: detailText })
+
+    if (format === 'text') {
+      const logger = consolaLoggers[level]
+      if (detail === undefined) {
+        logger(message)
+      } else {
+        logger(message, detail)
+      }
+    }
+  }
 
   try {
     if (filePaths.length === 0) {
-      consola.info(t.noPathsProvided())
-      return { scannedFiles: 0, filesWithErrors: 0, filesWithWarnings: 0, filesWithOptimizing: 0 }
+      log('info', t.noPathsProvided())
+      return {
+        scannedFiles: 0,
+        filesWithErrors: 0,
+        filesWithWarnings: 0,
+        filesWithOptimizing: 0,
+        violationTotals: { total: 0, error: 0, warning: 0, optimizing: 0 },
+        files: [],
+        notifications,
+      }
     }
 
     const validPaths = filePaths.filter((candidate) => checkPathExists(candidate))
     if (validPaths.length === 0) {
-      consola.error(t.allPathsMissing())
-      return { scannedFiles: 0, filesWithErrors: 0, filesWithWarnings: 0, filesWithOptimizing: 0 }
+      log('error', t.allPathsMissing())
+      return {
+        scannedFiles: 0,
+        filesWithErrors: 0,
+        filesWithWarnings: 0,
+        filesWithOptimizing: 0,
+        violationTotals: { total: 0, error: 0, warning: 0, optimizing: 0 },
+        files: [],
+        notifications,
+      }
     }
 
     let allFiles: string[] = []
@@ -55,8 +139,16 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSumm
     }
 
     if (allFiles.length === 0) {
-      consola.info(t.noFilesFound())
-      return { scannedFiles: 0, filesWithErrors: 0, filesWithWarnings: 0, filesWithOptimizing: 0 }
+      log('info', t.noFilesFound())
+      return {
+        scannedFiles: 0,
+        filesWithErrors: 0,
+        filesWithWarnings: 0,
+        filesWithOptimizing: 0,
+        violationTotals: { total: 0, error: 0, warning: 0, optimizing: 0 },
+        files: [],
+        notifications,
+      }
     }
 
     const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts'))
@@ -64,21 +156,30 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSumm
     const rules: Rule[] = [...builtinRules, ...customRules]
 
     if (rules.length === 0) {
-      consola.warn(t.noRulesLoaded())
+      log('warn', t.noRulesLoaded())
       return {
         scannedFiles: 0,
         filesWithErrors: 0,
         filesWithWarnings: 0,
         filesWithOptimizing: 0,
+        violationTotals: { total: 0, error: 0, warning: 0, optimizing: 0 },
+        files: [],
+        notifications,
       }
     }
 
     let filesWithErrors = 0
     let filesWithWarnings = 0
     let filesWithOptimizing = 0
+    let totalViolations = 0
+    let totalErrorViolations = 0
+    let totalWarningViolations = 0
+    let totalOptimizingViolations = 0
+
+    const fileSummaries: FileScanResult[] = []
 
     for (const file of scannableFiles) {
-      const summary = await analyzeFile(file, rules)
+      const summary = await analyzeFile(file, rules, format, log)
 
       if (summary.severityCounts.error > 0) {
         filesWithErrors += 1
@@ -91,6 +192,19 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSumm
       if (summary.severityCounts.optimizing > 0) {
         filesWithOptimizing += 1
       }
+
+      totalViolations += summary.totalViolations
+      totalErrorViolations += summary.errorViolations
+      totalWarningViolations += summary.severityCounts.warning
+      totalOptimizingViolations += summary.severityCounts.optimizing
+
+      fileSummaries.push({
+        filePath: file,
+        severityCounts: summary.severityCounts,
+        totalViolations: summary.totalViolations,
+        errorViolations: summary.errorViolations,
+        violations: summary.violations,
+      })
     }
 
     return {
@@ -98,6 +212,14 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSumm
       filesWithErrors,
       filesWithWarnings,
       filesWithOptimizing,
+      violationTotals: {
+        total: totalViolations,
+        error: totalErrorViolations,
+        warning: totalWarningViolations,
+        optimizing: totalOptimizingViolations,
+      },
+      files: fileSummaries,
+      notifications,
     }
   } catch (error) {
     throw error instanceof Error ? error : new Error(String(error))
@@ -106,11 +228,19 @@ async function run(filePaths: string[] = [], ruleDir?: string): Promise<ScanSumm
 
 interface AnalyzeFileSummary {
   severityCounts: FileSeveritySummary
+  totalViolations: number
+  errorViolations: number
+  violations: ReadonlyArray<ViolationRecord>
 }
 
-async function analyzeFile(file: string, rules: Rule[]): Promise<AnalyzeFileSummary> {
+async function analyzeFile(
+  file: string,
+  rules: Rule[],
+  format: OutputFormat,
+  log: Logger
+): Promise<AnalyzeFileSummary> {
   const source = readFile(file)
-  const reporter = createReporter(file, source)
+  const reporter = createReporter(file, source, { format })
   const t = getTranslator()
 
   let ast
@@ -119,13 +249,16 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<AnalyzeFileSumm
     const parseOptions = loadParseOptions(file)
     ast = parseSync(source, parseOptions as unknown as Parameters<typeof parseSync>[1])
   } catch (error) {
-    consola.error(t.parseFileFailed({ file }), error instanceof Error ? error.message : error)
+    log('error', t.parseFileFailed({ file }), error)
     return {
       severityCounts: {
         error: 1,
         warning: 0,
         optimizing: 0,
       },
+      totalViolations: 1,
+      errorViolations: 1,
+      violations: [],
     }
   }
 
@@ -185,10 +318,7 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<AnalyzeFileSumm
 
       await rule.run(context)
     } catch (error) {
-      consola.error(
-        t.ruleExecutionFailed({ ruleName: rule.name, file }),
-        error instanceof Error ? error.message : error
-      )
+      log('error', t.ruleExecutionFailed({ ruleName: rule.name, file }), error)
     }
   }
 
@@ -196,6 +326,9 @@ async function analyzeFile(file: string, rules: Rule[]): Promise<AnalyzeFileSumm
 
   return {
     severityCounts: summary.severityCounts,
+    totalViolations: summary.totalViolations,
+    errorViolations: summary.errorViolations,
+    violations: summary.violations,
   }
 }
 
@@ -291,41 +424,176 @@ function normalizeViolationInput(
   }
 }
 
+function parseOutputFormat(value?: string): OutputFormat {
+  if (!value) {
+    return 'text'
+  }
+
+  const normalized = value.toLowerCase()
+
+  if (normalized === 'json' || normalized === 'text') {
+    return normalized as OutputFormat
+  }
+
+  throw new Error(`Unsupported output format: ${value}. Use "text" or "json".`)
+}
+
+type JsonSeverity = 'error' | 'warning' | 'optimizing'
+
+interface JsonSuggestion {
+  text: string
+  link?: string
+}
+
+interface JsonViolation {
+  tag: string
+  ruleName: string
+  severity: JsonSeverity
+  message: string
+  line?: number
+  code?: string
+  suggestions: JsonSuggestion[]
+}
+
+interface JsonFileResult {
+  filePath: string
+  severityCounts: FileSeveritySummary
+  totalViolations: number
+  errorViolations: number
+  violations: JsonViolation[]
+}
+
+interface JsonOutputPayload {
+  summary: {
+    scannedFiles: number
+    filesWithErrors: number
+    filesWithWarnings: number
+    filesWithOptimizing: number
+    violationTotals: ScanSummary['violationTotals']
+  }
+  files: JsonFileResult[]
+  notifications: Notification[]
+}
+
+function severityToLabel(severity: RuleSeverity): JsonSeverity {
+  switch (severity) {
+    case RuleSeverity.Warning:
+      return 'warning'
+    case RuleSeverity.Optimizing:
+      return 'optimizing'
+    case RuleSeverity.Error:
+    default:
+      return 'error'
+  }
+}
+
+function formatViolationForJson(violation: ViolationRecord): JsonViolation {
+  const suggestions = violation.suggestions
+    ? violation.suggestions.map((suggestion) => ({ ...suggestion }))
+    : []
+
+  const payload: JsonViolation = {
+    tag: violation.tag,
+    ruleName: violation.ruleName,
+    severity: severityToLabel(violation.severity),
+    message: violation.message,
+    suggestions,
+  }
+
+  if (typeof violation.line === 'number') {
+    payload.line = violation.line
+  }
+
+  if (violation.code) {
+    payload.code = violation.code
+  }
+
+  return payload
+}
+
+function formatJsonOutput(result: ScanSummary): JsonOutputPayload {
+  return {
+    summary: {
+      scannedFiles: result.scannedFiles,
+      filesWithErrors: result.filesWithErrors,
+      filesWithWarnings: result.filesWithWarnings,
+      filesWithOptimizing: result.filesWithOptimizing,
+      violationTotals: result.violationTotals,
+    },
+    files: result.files.map((file) => ({
+      filePath: file.filePath,
+      severityCounts: file.severityCounts,
+      totalViolations: file.totalViolations,
+      errorViolations: file.errorViolations,
+      violations: file.violations.map(formatViolationForJson),
+    })),
+    notifications: result.notifications,
+  }
+}
+
 program
   .argument('[paths...]', '需要扫描的文件或目录路径列表 / Paths to scan')
   .option('-r, --rule-dir <directory>', '自定义规则目录路径 / Custom rule directory')
   .option('-l, --language <language>', '设置 CLI 语言 (zh/en) / Set CLI language (zh/en)')
+  .option('-o, --output <format>', '设置输出格式 (text/json) / Output format (text/json)', 'text')
   .parse(process.argv)
 
 const options = program.opts()
 const filePaths = program.args.map((target: string) => path.resolve(process.cwd(), target))
 
+setLanguage(options.language ?? process.env.LANG)
+
+let outputFormat: OutputFormat
+
+try {
+  outputFormat = parseOutputFormat(options.output)
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  consola.error(message)
+  process.exit(1)
+}
+
 ;(async () => {
   try {
-    setLanguage(options.language ?? process.env.LANG)
-    const summary = await run(filePaths, options.ruleDir)
+    const result = await run(filePaths, options.ruleDir, outputFormat)
     const t = getTranslator()
 
-    if (summary.scannedFiles > 0) {
+    if (outputFormat === 'json') {
+      const payload = formatJsonOutput(result)
+      const exitCode = result.filesWithErrors > 0 ? 1 : 0
+      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`)
+      process.exit(exitCode)
+    }
+
+    if (result.scannedFiles > 0) {
       consola.log(' ')
       const language = getLanguage()
       const resultMessage = language.startsWith('zh')
-        ? ` ${t.scanComplete()}，本次共扫描${summary.scannedFiles}个文件，其中${summary.filesWithErrors}个文件存在错误，${summary.filesWithWarnings}个文件存在警告，${summary.filesWithOptimizing}个文件存在优化建议！`
-        : ` ${t.scanComplete()}, scanned ${summary.scannedFiles} files: ${summary.filesWithErrors} with errors, ${summary.filesWithWarnings} with warnings, ${summary.filesWithOptimizing} with optimizing hints!`
+        ? ` ${t.scanComplete()}，本次共扫描${result.scannedFiles}个文件，其中${result.filesWithErrors}个文件存在错误，${result.filesWithWarnings}个文件存在警告，${result.filesWithOptimizing}个文件存在优化建议！`
+        : ` ${t.scanComplete()}, scanned ${result.scannedFiles} files: ${result.filesWithErrors} with errors, ${result.filesWithWarnings} with warnings, ${result.filesWithOptimizing} with optimizing hints!`
 
-      if (summary.filesWithErrors > 0) {
-        consola.success(resultMessage)
-        process.exit(1)
-      } else {
-        consola.success(resultMessage)
-        process.exit(0)
-      }
+      consola.success(resultMessage)
+      const exitCode = result.filesWithErrors > 0 ? 1 : 0
+      process.exit(exitCode)
     } else {
       process.exit(0)
     }
   } catch (error) {
     const t = getTranslator()
-    consola.error(t.scanError(), error instanceof Error ? error.message : error)
+    const detail = error instanceof Error ? error.message : String(error)
+
+    if (outputFormat === 'json') {
+      const payload = {
+        error: {
+          message: t.scanError(),
+          detail,
+        },
+      }
+      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`)
+    } else {
+      consola.error(t.scanError(), detail)
+    }
+
     process.exit(1)
   }
 })()
