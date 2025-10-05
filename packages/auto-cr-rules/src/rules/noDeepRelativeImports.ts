@@ -109,18 +109,20 @@ const readUtf8Character = (source: string, index: number, code: number): { bytes
 }
 
 const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number): number => {
-  if (bytePos <= moduleStart) {
+  const target = Math.max(bytePos - moduleStart, 0)
+
+  if (target === 0) {
     return 0
   }
 
   let index = 0
-  let byteOffset = moduleStart
+  let byteOffset = 0
 
   while (index < source.length) {
     const code = source.charCodeAt(index)
     const { bytes, nextIndex } = readUtf8Character(source, index, code)
 
-    if (byteOffset + bytes > bytePos) {
+    if (byteOffset + bytes > target) {
       return index
     }
 

@@ -103,7 +103,10 @@ export const noSwallowedErrors = defineRule(
       const statements = body.stmts
 
       const report = (): void => {
-        const line = resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, body.span.start))
+        const charIndex = bytePosToCharIndex(source, moduleStart, body.span.start)
+        const computedLine = resolveLine(lineIndex, charIndex)
+        const fallbackLine = findCatchLine(source, computedLine)
+        const line = selectLineNumber(computedLine, fallbackLine)
         helpers.reportViolation(
           {
             description: messages.swallowedError(),
@@ -187,18 +190,20 @@ const readUtf8Character = (source: string, index: number, code: number): { bytes
 }
 
 const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number): number => {
-  if (bytePos <= moduleStart) {
+  const target = Math.max(bytePos - moduleStart, 0)
+
+  if (target === 0) {
     return 0
   }
 
   let index = 0
-  let byteOffset = moduleStart
+  let byteOffset = 0
 
   while (index < source.length) {
     const code = source.charCodeAt(index)
     const { bytes, nextIndex } = readUtf8Character(source, index, code)
 
-    if (byteOffset + bytes > bytePos) {
+    if (byteOffset + bytes > target) {
       return index
     }
 
@@ -207,4 +212,34 @@ const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number
   }
 
   return source.length
+}
+
+const findCatchLine = (source: string, computedLine?: number): number | undefined => {
+  const lines = source.split(/\r?\n/)
+  const startIndex = Math.max((computedLine ?? 1) - 1, 0)
+  const catchPattern = /\bcatch\b/
+
+  for (let index = startIndex; index < lines.length; index += 1) {
+    if (catchPattern.test(lines[index])) {
+      return index + 1
+    }
+  }
+
+  return undefined
+}
+
+const selectLineNumber = (computed?: number, fallback?: number): number | undefined => {
+  if (fallback === undefined) {
+    return computed
+  }
+
+  if (computed === undefined) {
+    return fallback
+  }
+
+  if (computed < fallback) {
+    return fallback
+  }
+
+  return computed
 }
