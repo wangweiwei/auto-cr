@@ -85,6 +85,7 @@ export const noSwallowedErrors = defineRule(
   'no-swallowed-errors',
   { tag: 'base', severity: RuleSeverity.Warning },
   ({ ast, helpers, messages, source }) => {
+    // Record the start of the module so we can normalise SWC's global byte offsets to file-local positions.
     const moduleStart = ast.span?.start ?? 0
     const lineIndex = buildLineIndex(source)
 
@@ -103,6 +104,7 @@ export const noSwallowedErrors = defineRule(
       const statements = body.stmts
 
       const report = (): void => {
+        // Convert the body span to a line, then fall back to the literal catch line if the maths lands in comments.
         const charIndex = bytePosToCharIndex(source, moduleStart, body.span.start)
         const computedLine = resolveLine(lineIndex, charIndex)
         const fallbackLine = findCatchLine(source, computedLine)
@@ -137,6 +139,7 @@ type LineIndex = {
 }
 
 const buildLineIndex = (source: string): LineIndex => {
+  // Collect every newline. We share the helper with the import rule so behaviour stays consistent across detectors.
   const offsets: number[] = [0]
 
   for (let index = 0; index < source.length; index += 1) {
@@ -219,6 +222,7 @@ const findCatchLine = (source: string, computedLine?: number): number | undefine
   const startIndex = Math.max((computedLine ?? 1) - 1, 0)
   const catchPattern = /\bcatch\b/
 
+  // Walk forward from the computed line so we land on the actual catch clause even if decorators or comments exist.
   for (let index = startIndex; index < lines.length; index += 1) {
     if (catchPattern.test(lines[index])) {
       return index + 1
@@ -229,6 +233,7 @@ const findCatchLine = (source: string, computedLine?: number): number | undefine
 }
 
 const selectLineNumber = (computed?: number, fallback?: number): number | undefined => {
+  // Mirror the behaviour in the import rule: prefer the fallback when it is available and appears after the computed line.
   if (fallback === undefined) {
     return computed
   }

@@ -6,6 +6,7 @@ export const noDeepRelativeImports = defineRule(
   'no-deep-relative-imports',
   { tag: 'base', severity: RuleSeverity.Warning },
   ({ ast, helpers, messages, language, source }) => {
+    // Build a per-file line index so we can convert byte offsets emitted by SWC back to line numbers.
     const moduleStart = ast.span?.start ?? 0
     const lineIndex = buildLineIndex(source)
 
@@ -34,6 +35,7 @@ export const noDeepRelativeImports = defineRule(
           ? resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, reference.span.start))
           : undefined
         const fallbackLine = findImportLine(source, reference.value)
+        // Prefer the larger value so we never point at leading block comments when the byte offset is truncated.
         const line = selectLineNumber(computedLine, fallbackLine)
 
         helpers.reportViolation(
@@ -56,6 +58,7 @@ type LineIndex = {
 }
 
 const buildLineIndex = (source: string): LineIndex => {
+  // Track every newline so we can binary-search the surrounding line for any byte position.
   const offsets: number[] = [0]
 
   for (let index = 0; index < source.length; index += 1) {
@@ -139,6 +142,7 @@ const findImportLine = (source: string, value: string): number | undefined => {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]
 
+    // Look for the literal import string. This is slower than span math but provides a robust fallback.
     if (line.includes('import') && line.includes(value)) {
       return index + 1
     }
@@ -148,6 +152,8 @@ const findImportLine = (source: string, value: string): number | undefined => {
 }
 
 const selectLineNumber = (computed?: number, fallback?: number): number | undefined => {
+  // If one of the sources is missing, prefer the other. When both exist, use the larger line number so
+  // we avoid pointing at comment blocks above the actual statement.
   if (fallback === undefined) {
     return computed
   }
