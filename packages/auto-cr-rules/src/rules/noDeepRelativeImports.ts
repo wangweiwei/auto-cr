@@ -30,9 +30,11 @@ export const noDeepRelativeImports = defineRule(
                 { text: 'Create an index file at a higher level to re-export the module and shorten the import.' },
               ]
 
-        const line = reference.span
+        const computedLine = reference.span
           ? resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, reference.span.start))
           : undefined
+        const fallbackLine = findImportLine(source, reference.value)
+        const line = selectLineNumber(computedLine, fallbackLine)
 
         helpers.reportViolation(
           {
@@ -127,4 +129,34 @@ const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number
   }
 
   return source.length
+}
+
+const findImportLine = (source: string, value: string): number | undefined => {
+  const lines = source.split(/\r?\n/)
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+
+    if (line.includes('import') && line.includes(value)) {
+      return index + 1
+    }
+  }
+
+  return undefined
+}
+
+const selectLineNumber = (computed?: number, fallback?: number): number | undefined => {
+  if (fallback === undefined) {
+    return computed
+  }
+
+  if (computed === undefined) {
+    return fallback
+  }
+
+  if (computed < fallback) {
+    return fallback
+  }
+
+  return computed
 }
