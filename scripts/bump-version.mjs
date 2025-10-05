@@ -24,6 +24,65 @@ const semverBump = (version) => {
   }
 }
 
+const parseNumericParts = (version) => {
+  const [major, minor, patchWithMeta = '0'] = version.split('.')
+  const patchMatch = patchWithMeta.match(/^(\d+)/)
+  const majorNum = Number(major)
+  const minorNum = Number(minor)
+  const patchNum = Number(patchMatch?.[1] ?? patchWithMeta)
+
+  if ([majorNum, minorNum, patchNum].some((value) => Number.isNaN(value))) {
+    throw new Error(`Invalid semver encountered: ${version}`)
+  }
+
+  return [majorNum, minorNum, patchNum]
+}
+
+const compareVersions = (a, b) => {
+  const [aMajor, aMinor, aPatch] = parseNumericParts(a)
+  const [bMajor, bMinor, bPatch] = parseNumericParts(b)
+
+  if (aMajor !== bMajor) return aMajor > bMajor ? 1 : -1
+  if (aMinor !== bMinor) return aMinor > bMinor ? 1 : -1
+  if (aPatch !== bPatch) return aPatch > bPatch ? 1 : -1
+  return 0
+}
+
+const extractTagVersion = () => {
+  const raw = process.env.TAG_VERSION || process.env.GITHUB_REF_NAME || process.env.GITHUB_REF
+  if (!raw) return null
+
+  const normalized = raw.replace(/^refs\/tags\//, '')
+  const match = normalized.match(/^v(\d+\.\d+\.\d+(?:[-+].*)?)$/)
+  return match ? match[1] : null
+}
+
+const decideNextVersion = (current) => {
+  const tagVersion = extractTagVersion()
+
+  if (tagVersion) {
+    const comparison = compareVersions(tagVersion, current)
+
+    if (comparison >= 0) {
+      if (comparison > 0) {
+        console.log(`Using tag version ${tagVersion} (was ${current})`)
+      } else {
+        console.log(`Tag version ${tagVersion} matches current version; keeping as-is`)
+      }
+
+      return tagVersion
+    }
+
+    console.warn(
+      `Tag version ${tagVersion} is lower than package version ${current}; falling back to ${VERSION_TYPE} bump`
+    )
+  }
+
+  const bumped = semverBump(current)
+  console.log(`Proceeding with ${VERSION_TYPE} bump: ${current} -> ${bumped}`)
+  return bumped
+}
+
 const updatePackage = (packageName, nextVersion) => {
   const packagePath = join(WORKSPACE_ROOT, 'packages', packageName, 'package.json')
   const content = JSON.parse(readFileSync(packagePath, 'utf-8'))
@@ -42,11 +101,9 @@ const main = () => {
     readFileSync(join(WORKSPACE_ROOT, 'packages', PACKAGES[0], 'package.json'), 'utf-8')
   ).version
 
-  const nextVersion = semverBump(current)
-
+  const nextVersion = decideNextVersion(current)
   PACKAGES.forEach((name) => updatePackage(name, nextVersion))
-
-  console.log(`Version bumped to ${nextVersion}`)
+  console.log(`Version updated to ${nextVersion}`)
 }
 
 main()
