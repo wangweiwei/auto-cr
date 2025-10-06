@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-cmd",
-  "version": "2.0.46",
+  "version": "2.0.53",
   "description": "Fast automated code review CLI powered by SWC-based static analysis",
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
@@ -20,7 +20,6 @@
     "cli": "ts-node src/index.ts",
     "prepublishOnly": "pnpm run build",
     "release": "pnpm run build && npm publish --access public",
-    "postrelease": "node ../../scripts/readme-sync.mjs delayed-clean auto-cr-cmd",
     "format": "prettier --write src"
   },
   "keywords": [
@@ -48,7 +47,7 @@
   "dependencies": {
     "@swc/core": "^1.13.20",
     "@swc/wasm": "^1.13.20",
-    "auto-cr-rules": "^2.0.46",
+    "auto-cr-rules": "^2.0.53",
     "commander": "^14.0.0",
     "consola": "^3.4.2"
   },
