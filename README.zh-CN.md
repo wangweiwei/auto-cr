@@ -199,7 +199,7 @@ examples/
 ## 社区与支持
 
 - 问题反馈：[Issue Tracker](https://github.com/wangweiwei/auto-cr/issues)
-- 讨论社区：[Community Discussions](https://github.com/wangweiwei/auto-cr/wiki)
+- 讨论社区：[Community Discussions](https://github.com/wangweiwei/auto-cr/discussions)
 
 ---
 

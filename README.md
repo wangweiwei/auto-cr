@@ -199,7 +199,7 @@ We welcome contributions through Issues or Pull Requests. Please read:
 ## Community & Support
 
 - Issues: [Issue Tracker](https://github.com/wangweiwei/auto-cr/issues)
-- Discussions: [Community Discussions](https://github.com/wangweiwei/auto-cr/wiki)
+- Discussions: [Community Discussions](https://github.com/wangweiwei/auto-cr/discussions)
 
 ---
 
