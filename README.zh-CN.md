@@ -13,9 +13,9 @@
   <a href="https://github.com/wangweiwei/auto-cr/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/wangweiwei/auto-cr" /></a>
 </p>
 
-> 🎯 auto-cr-cmd 是一个基于 SWC 静态分析的高速自动化代码审查 CLI，专为 JavaScript / TypeScript 团队设计，可在合并前快速发现风险代码。
+> 🎯 [auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd) 是一个基于 SWC 静态分析的高速自动化代码审查 CLI，专为 JavaScript / TypeScript 团队设计，可在合并前快速发现风险代码。
 
-> 🔧 auto-cr-rules 提供可扩展的静态分析规则集与 SDK，帮你零成本定制企业级代码审查策略。
+> 🔧 [auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules) 提供可扩展的静态分析规则集与 SDK，帮你零成本定制企业级代码审查策略。
 
 📘 Prefer English? Read the [English README](https://github.com/wangweiwei/auto-cr/blob/main/README.md).
 
@@ -27,10 +27,10 @@
 - **工作区管理**：使用 pnpm workspace 同时管理 CLI 与规则包，一次构建即可验证完整流程。
 - **发布友好**：内置版本递增脚本与 npm 发布命令，保持两个包的版本同步。
 
-## 包概览（auto-cr-cmd & auto-cr-rules）
+## 包概览（[auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd) & [auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules)）
 
-- **auto-cr-cmd**：基于 SWC 的极速命令行工具，聚焦自动化代码审查、CI 集成与静态代码扫描。
-- **auto-cr-rules**：面向开发者的规则 SDK，支持多标签分类、国际化提示与团队定制规则发布。
+- **[auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd)**：基于 SWC 的极速命令行工具，聚焦自动化代码审查、CI 集成与静态代码扫描。
+- **[auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules)**：面向开发者的规则 SDK，支持多标签分类、国际化提示与团队定制规则发布。
 
 ## 快速开始
 

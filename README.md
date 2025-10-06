@@ -13,9 +13,9 @@
   <a href="https://github.com/wangweiwei/auto-cr/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/wangweiwei/auto-cr" /></a>
 </p>
 
-> 🎯 auto-cr-cmd is a high-speed automated code review CLI powered by SWC static analysis, built for JavaScript / TypeScript teams to surface risky code before it merges.
+> 🎯 [auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd) is a high-speed automated code review CLI powered by SWC static analysis, built for JavaScript / TypeScript teams to surface risky code before it merges.
 >
-> 🔧 auto-cr-rules provides an extensible static analysis rule set and SDK so you can tailor enterprise-grade review policies with minimal effort.
+> 🔧 [auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules) provides an extensible static analysis rule set and SDK so you can tailor enterprise-grade review policies with minimal effort.
 
 📘 Prefer Chinese? Read the [Chinese README](https://github.com/wangweiwei/auto-cr/blob/main/README.zh-CN.md).
 
@@ -27,10 +27,10 @@
 - **Workspace Friendly**: Manage both the CLI and rule package via pnpm workspaces and validate the full pipeline with a single build.
 - **Publishing Toolkit**: Version bump scripts and npm publish commands keep both packages in sync.
 
-## Package Overview (auto-cr-cmd & auto-cr-rules)
+## Package Overview ([auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd) & [auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules))
 
-- **auto-cr-cmd**: A lightning-fast SWC-based CLI focused on automated reviews, CI integration, and static code scanning.
-- **auto-cr-rules**: A developer-facing rule SDK with tag-based grouping, internationalized messaging, and support for publishing team-specific rules.
+- **[auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd)**: A lightning-fast SWC-based CLI focused on automated reviews, CI integration, and static code scanning.
+- **[auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules)**: A developer-facing rule SDK with tag-based grouping, internationalized messaging, and support for publishing team-specific rules.
 
 ## Quick Start
 
