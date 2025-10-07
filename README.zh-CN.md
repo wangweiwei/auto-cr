@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/auto-cr-cmd"><img alt="NPM Version" src="https://img.shields.io/npm/v/auto-cr-cmd.svg?style=flat"/></a>
   <a href="https://www.npmjs.com/package/auto-cr-cmd"><img alt="NPM Downloads" src="https://img.shields.io/npm/dm/auto-cr-cmd.svg?style=flat"/></a>
-  <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/wangweiwei/auto-cr"/></a>
+  <a href="https://github.com/wangweiwei/auto-cr/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/wangweiwei/auto-cr"/></a>
   <a href="https://github.com/wangweiwei/auto-cr/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/wangweiwei/auto-cr" /></a>
 </p>
 
@@ -203,4 +203,4 @@ examples/
 
 ---
 
-Auto CR © [2025] [dengfengwang]。许可协议： [MIT License](./LICENSE)
+Auto CR © [2025] [dengfengwang]。许可协议： [MIT License](https://github.com/wangweiwei/auto-cr/blob/main/LICENSE)
