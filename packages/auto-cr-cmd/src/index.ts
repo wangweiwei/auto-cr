@@ -8,6 +8,7 @@ import { loadParseOptions } from './config'
 import { createReporter, type ReporterFormat, type ViolationRecord } from './report'
 import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { readFile, getAllFiles, checkPathExists } from './utils/file'
+import { readPathsFromStdin } from './utils/stdin'
 import { builtinRules, createRuleContext, RuleSeverity } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
@@ -541,10 +542,16 @@ program
   .option('-r, --rule-dir <directory>', '自定义规则目录路径 / Custom rule directory')
   .option('-l, --language <language>', '设置 CLI 语言 (zh/en) / Set CLI language (zh/en)')
   .option('-o, --output <format>', '设置输出格式 (text/json) / Output format (text/json)', 'text')
+  .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
   .parse(process.argv)
 
-const options = program.opts()
-const filePaths = program.args.map((target: string) => path.resolve(process.cwd(), target))
+const options = program.opts<{
+  ruleDir?: string
+  language?: string
+  output?: string
+  stdin?: boolean
+}>()
+const cliArguments = program.args as string[]
 
 setLanguage(options.language ?? process.env.LANG)
 
@@ -560,6 +567,9 @@ try {
 
 ;(async () => {
   try {
+    const stdinTargets = await readPathsFromStdin(Boolean(options.stdin))
+    const combinedTargets = [...cliArguments, ...stdinTargets]
+    const filePaths = combinedTargets.map((target) => path.resolve(process.cwd(), target))
     const result = await run(filePaths, options.ruleDir, outputFormat)
     const t = getTranslator()
 

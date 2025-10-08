@@ -6,7 +6,7 @@
  */
 const { defineRule, RuleSeverity } = require('../../../packages/auto-cr-rules/dist')
 
-module.exports = defineRule('no-index-import', {severity: RuleSeverity.Warning }, ({ helpers, language }) => {
+module.exports = defineRule('no-index-import', { severity: RuleSeverity.Error }, ({ helpers, language }) => {
   for (const ref of helpers.imports) {
     if (ref.value.endsWith('/index')) {
       const message =
