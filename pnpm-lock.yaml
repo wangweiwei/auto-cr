@@ -21,8 +21,8 @@ importers:
         specifier: ^1.13.20
         version: 1.13.20
       auto-cr-rules:
-        specifier: ^2.0.57
-        version: 2.0.57
+        specifier: ^2.0.60
+        version: 2.0.60
       commander:
         specifier: ^14.0.0
         version: 14.0.1
@@ -37,8 +37,8 @@ importers:
         specifier: ^0.1.25
         version: 0.1.25
       '@types/node':
-        specifier: ^24.7.0
-        version: 24.7.0
+        specifier: ^24.7.1
+        version: 24.7.1
       eslint:
         specifier: ^9.37.0
         version: 9.37.0(jiti@2.6.1)
@@ -56,7 +56,7 @@ importers:
         version: 3.6.2
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.13.20)(@swc/wasm@1.13.20)(@types/node@24.7.0)(typescript@5.9.3)
+        version: 10.9.2(@swc/core@1.13.20)(@swc/wasm@1.13.20)(@types/node@24.7.1)(typescript@5.9.3)
       tslib:
         specifier: ^2.8.1
         version: 2.8.1
@@ -262,8 +262,8 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
-  '@types/node@24.7.0':
-    resolution: {integrity: sha512-IbKooQVqUBrlzWTi79E8Fw78l8k1RNtlDDNWsFZs7XonuQSJ8oNYfEeclhprUldXISRMLzBpILuKgPlIxm+/Yw==}
+  '@types/node@24.7.1':
+    resolution: {integrity: sha512-CmyhGZanP88uuC5GpWU9q+fI61j2SkhO3UGMUdfYRE6Bcy0ccyzn1Rqj9YAB/ZY4kOXmNf0ocah5GtphmLMP6Q==}
 
   '@typescript-eslint/eslint-plugin@8.46.0':
     resolution: {integrity: sha512-hA8gxBq4ukonVXPy0OKhiaUh/68D0E88GSmtC1iAEnGaieuDi38LhS7jdCHRLi6ErJBNDGCzvh5EnzdPwUc0DA==}
@@ -354,8 +354,8 @@ packages:
   auto-cr-rules@2.0.30:
     resolution: {integrity: sha512-n49orH0CbTYqy23DNA5vKGdLcz87hyPz/FWD6imZwDPIe1gXDq1PVbM/0ueYauslJOh0s8g/P2nNpTH9ojiVbg==}
 
-  auto-cr-rules@2.0.57:
-    resolution: {integrity: sha512-yz0GrSBZMiUSaDrI1Oc/SbIakJnWoSEBtlgXO+OorO1YbmscOjfe1P41sKK71lycWy+Um4uxcqvTEgNdTneGtQ==}
+  auto-cr-rules@2.0.60:
+    resolution: {integrity: sha512-KYrYCsNS1qpWZasai7dV6yDGItmyytrzmvNhhj4Gplb8msGKTXAGTNwUCWqDiQxy8a1zYzzCm6Mhgk2MYRL3Hw==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -931,7 +931,7 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
-  '@types/node@24.7.0':
+  '@types/node@24.7.1':
     dependencies:
       undici-types: 7.14.0
 
@@ -1057,7 +1057,7 @@ snapshots:
     dependencies:
       '@swc/types': 0.1.25
 
-  auto-cr-rules@2.0.57:
+  auto-cr-rules@2.0.60:
     dependencies:
       '@swc/types': 0.1.25
 
@@ -1387,14 +1387,14 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  ts-node@10.9.2(@swc/core@1.13.20)(@swc/wasm@1.13.20)(@types/node@24.7.0)(typescript@5.9.3):
+  ts-node@10.9.2(@swc/core@1.13.20)(@swc/wasm@1.13.20)(@types/node@24.7.1)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 24.7.0
+      '@types/node': 24.7.1
       acorn: 8.15.0
       acorn-walk: 8.3.4
       arg: 4.1.3
