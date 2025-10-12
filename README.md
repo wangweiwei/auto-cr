@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/wangweiwei/auto-cr">
-    <img src="https://github.com/wangweiwei/auto-cr/blob/main/assets/images/logo.png?raw=true" alt="auto-cr logo" width="60" />
+    <img src="https://github.com/wangweiwei/auto-cr/blob/main/assets/images/logo.png?raw=true" alt="auto-cr logo" width="100" />
   </a>
 </p>
 
@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/auto-cr-cmd"><img alt="NPM Version" src="https://img.shields.io/npm/v/auto-cr-cmd.svg?style=flat"/></a>
-  <a href="https://www.npmjs.com/package/auto-cr-cmd"><img alt="NPM Downloads" src="https://img.shields.io/npm/dm/auto-cr-cmd.svg?style=flat"/></a>
+  <a href="https://www.npmjs.com/package/auto-cr-cmd"><img alt="NPM Downloads" src="https://img.shields.io/npm/d18m/auto-cr-cmd.svg?style=flat"/></a>
   <a href="https://github.com/wangweiwei/auto-cr/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/wangweiwei/auto-cr"/></a>
   <a href="https://github.com/wangweiwei/auto-cr/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/wangweiwei/auto-cr" /></a>
 </p>
