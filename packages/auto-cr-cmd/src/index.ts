@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { program } from 'commander'
 import { parseSync } from '@swc/wasm'
-import { loadParseOptions } from './config'
+import { loadParseOptions, setTsConfigPath } from './config'
 import { createReporter, type ReporterFormat, type ViolationRecord } from './report'
 import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { readFile, getAllFiles, checkPathExists } from './utils/file'
@@ -566,6 +566,7 @@ program
   .option('-o, --output <format>', '设置输出格式 (text/json) / Output format (text/json)', 'text')
   .option('-c, --config <path>', '配置文件路径 (.autocrrc.json|.autocrrc.js) / Config file path (.autocrrc.json|.autocrrc.js)')
   .option('--ignore-path <path>', '忽略文件列表路径 (.autocrignore.json|.autocrignore.js) / Ignore file path (.autocrignore.json|.autocrignore.js)')
+  .option('--tsconfig <path>', '自定义 tsconfig 路径 / Custom tsconfig path')
   .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
   .parse(process.argv)
 
@@ -576,10 +577,12 @@ const options = program.opts<{
   stdin?: boolean
   config?: string
   ignorePath?: string
+  tsconfig?: string
 }>()
 const cliArguments = program.args as string[]
 
 setLanguage(options.language ?? process.env.LANG)
+setTsConfigPath(options.tsconfig ? path.resolve(process.cwd(), options.tsconfig) : undefined)
 
 let outputFormat: OutputFormat
 

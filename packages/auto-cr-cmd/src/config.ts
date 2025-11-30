@@ -15,13 +15,19 @@ interface TsConfig {
 }
 
 let cachedTsConfig: TsConfig | null | undefined
+let tsConfigPathOverride: string | null = null
+
+export function setTsConfigPath(path?: string): void {
+  tsConfigPathOverride = path ? path : null
+  cachedTsConfig = undefined
+}
 
 function readTsConfig(): TsConfig | null {
   if (cachedTsConfig !== undefined) {
     return cachedTsConfig
   }
 
-  const tsConfigPath = path.resolve(process.cwd(), 'tsconfig.json')
+  const tsConfigPath = tsConfigPathOverride ?? path.resolve(process.cwd(), 'tsconfig.json')
 
   if (!fs.existsSync(tsConfigPath)) {
     cachedTsConfig = null

@@ -45,6 +45,7 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 - `--output <text|json>`：选择输出格式，`text` 为友好的终端日志，`json` 用于集成脚本（默认为 `text`）。
 - `--config <path>`：指定 `.autocrrc.json` 或 `.autocrrc.js` 配置文件路径，用于开启/关闭规则。
 - `--ignore-path <path>`：指定 `.autocrignore.json` 或 `.autocrignore.js` 忽略文件路径，用于排除扫描。
+- `--tsconfig <path>`：指定自定义 `tsconfig.json` 路径（默认读取 `<cwd>/tsconfig.json`）。
 - `--help`：查看完整命令说明。
 
 示例输出：

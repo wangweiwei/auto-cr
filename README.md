@@ -45,6 +45,7 @@ Common flags:
 - `--output <text|json>`: Choose between human-friendly text logs or structured JSON results (defaults to `text`).
 - `--config <path>`: Point to a `.autocrrc.json` or `.autocrrc.js` file to enable/disable rules.
 - `--ignore-path <path>`: Point to a `.autocrignore.json` or `.autocrignore.js` file to exclude files/directories from scanning.
+- `--tsconfig <path>`: Use a custom `tsconfig.json` (defaults to `<cwd>/tsconfig.json`).
 - `--help`: Display the full command reference.
 
 Sample output:
