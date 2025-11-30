@@ -1,11 +1,12 @@
 # 配置：.autocrrc（启用/关闭规则）
 
 ## 1. 作用
-- 通过仓库根目录下的 `.autocrrc.json/.js/.cjs` 统一开启、关闭或调整规则严重级别，覆盖内置与自定义规则。
+- 通过仓库根目录下的 `.autocrrc.json/.js` 统一开启、关闭或调整规则严重级别，覆盖内置与自定义规则。
 
 ## 2. 搜索顺序与 CLI 参数
-- 默认在 `process.cwd()` 下按顺序查找：`.autocrrc.json` → `.autocrrc.js` → `.autocrrc.cjs`。
+- 默认在 `process.cwd()` 下按顺序查找：`.autocrrc.json` → `.autocrrc.js`。
 - 使用 `--config <path>` 可指定其他路径（绝对或相对均可）。
+- 路径匹配相对 `.autocrrc*` 文件所在目录进行计算。
 
 ## 3. 配置结构
 ```jsonc
@@ -52,3 +53,35 @@ module.exports = {
 - 未写明的规则沿用自身默认严重级别。
 - 当配置关闭所有规则时，扫描将直接跳过并提示警告。
 - 配置文件不存在、无法解析或字段类型不正确时，会输出警告并继续使用默认规则设置。
+
+---
+
+# 忽略配置：.autocrignore（排除扫描路径）
+
+## 1. 作用
+- 类似 `.eslintignore`，用于排除不需要扫描的文件/目录（例如构建产物、第三方代码）。
+
+## 2. 搜索顺序与 CLI 参数
+- 默认在 `process.cwd()` 下查找：`.autocrignore.json` → `.autocrignore.js`。
+- 使用 `--ignore-path <path>` 可指定其他忽略文件路径。
+- 匹配基于忽略文件所在目录计算相对路径；同样会尝试匹配绝对路径。
+
+## 3. 支持的写法
+- JSON/JS：支持字符串数组或 `{ ignore: string[] }`。
+  - JS/JSON 示例：
+    ```js
+    // .autocrignore.js
+    module.exports = {
+      ignore: [
+        'node_modules',
+        'dist/**',
+        '**/*.test.ts'
+      ]
+    }
+    ```
+
+## 4. 模式说明
+- 使用 glob 规则（基于 picomatch），`dot` 文件也会匹配：
+  - `node_modules`、`dist/**`、`**/*.test.ts` 等。
+- 匹配时同时尝试绝对路径和相对 `cwd` 的路径。
+- 默认仍会跳过 `.d.ts` 文件；`node_modules` 目录也可通过忽略配置覆盖（默认递归时会跳过，但匹配到忽略规则时同样跳过）。

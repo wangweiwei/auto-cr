@@ -43,7 +43,8 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 - `--language <zh|en>`：切换 CLI 输出语言（默认为自动检测）。
 - `--rule-dir <directory>`：加载额外的自定义规则目录或包。
 - `--output <text|json>`：选择输出格式，`text` 为友好的终端日志，`json` 用于集成脚本（默认为 `text`）。
-- `--config <path>`：指定 `.autocrrc.json` / `.autocrrc.js` 配置文件路径，用于开启/关闭规则。
+- `--config <path>`：指定 `.autocrrc.json` 或 `.autocrrc.js` 配置文件路径，用于开启/关闭规则。
+- `--ignore-path <path>`：指定 `.autocrignore.json` 或 `.autocrignore.js` 忽略文件路径，用于排除扫描。
 - `--help`：查看完整命令说明。
 
 示例输出：
@@ -111,7 +112,7 @@ npx auto-cr-cmd --output json -- ./src | jq
 
 ## 配置（.autocrrc）
 
-- 在仓库根目录放置 `.autocrrc.json` 或 `.autocrrc.js`（搜索顺序：`.autocrrc.json`、`.autocrrc.js`、`.autocrrc.cjs`）；如需放在其他位置，可通过 `--config <path>` 指定。
+- 在仓库根目录放置 `.autocrrc.json` 或 `.autocrrc.js`（按此顺序查找）；如需放在其他位置，可通过 `--config <path>` 指定。
 - `rules` 支持的值：`off | warning | error | optimizing | true/false | 0/1/2`，未写明的规则沿用默认严重级别。
 
 ```jsonc
@@ -121,6 +122,30 @@ npx auto-cr-cmd --output json -- ./src | jq
     "no-deep-relative-imports": "error",
     "no-swallowed-errors": "off"
   }
+}
+```
+
+### 忽略文件（.autocrignore）
+
+- 在仓库根目录放置 `.autocrignore.json` 或 `.autocrignore.js`（按此顺序查找），或通过 `--ignore-path <file>` 指定自定义路径。
+- 仅支持 JSON/JS 写法，基于 picomatch 的 glob 模式，数组键为 `ignore`。
+
+```js
+// .autocrignore.js
+module.exports = {
+  ignore: ['node_modules', 'dist/**', '**/*.test.ts', 'public/**']
+}
+```
+
+```json
+// .autocrignore.json
+{
+  "ignore": [
+    "node_modules",
+    "dist/**",
+    "**/*.test.ts",
+    "public/**"
+  ]
 }
 ```
 

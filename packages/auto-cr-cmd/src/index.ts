@@ -12,6 +12,7 @@ import { readPathsFromStdin } from './utils/stdin'
 import { builtinRules, createRuleContext, RuleSeverity } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
 import { applyRuleConfig, loadAutoCrRc } from './config/autocrrc'
+import { createIgnoreMatcher, loadIgnoreConfig } from './config/ignore'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
 
 consola.options.formatOptions = {
@@ -72,7 +73,8 @@ async function run(
   filePaths: string[] = [],
   ruleDir: string | undefined,
   format: OutputFormat,
-  configPath?: string
+  configPath?: string,
+  ignorePath?: string
 ): Promise<ScanSummary> {
   const t = getTranslator()
   const notifications: Notification[] = []
@@ -134,14 +136,26 @@ async function run(
       }
     }
 
+    const ignoreConfig = loadIgnoreConfig(ignorePath)
+    ignoreConfig.warnings.forEach((warning) => log('warn', warning))
+    const isIgnored = createIgnoreMatcher(ignoreConfig.patterns, ignoreConfig.baseDir)
+
     let allFiles: string[] = []
 
     for (const targetPath of validPaths) {
+      if (isIgnored(targetPath)) {
+        continue
+      }
+
       const stat = fs.statSync(targetPath)
       if (stat.isFile()) {
-        allFiles.push(targetPath)
+        if (!isIgnored(targetPath)) {
+          allFiles.push(targetPath)
+        }
       } else if (stat.isDirectory()) {
-        const directoryFiles = getAllFiles(targetPath)
+        const directoryFiles = getAllFiles(targetPath, [], ['.ts', '.tsx', '.js', '.jsx'], {
+          shouldIgnore: (fullPath) => isIgnored(fullPath),
+        })
         allFiles = [...allFiles, ...directoryFiles]
       }
     }
@@ -159,7 +173,7 @@ async function run(
       }
     }
 
-    const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts'))
+    const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts') && !isIgnored(candidate))
     const customRules = loadCustomRules(ruleDir)
     const rcConfig = loadAutoCrRc(configPath)
 
@@ -551,6 +565,7 @@ program
   .option('-l, --language <language>', '设置 CLI 语言 (zh/en) / Set CLI language (zh/en)')
   .option('-o, --output <format>', '设置输出格式 (text/json) / Output format (text/json)', 'text')
   .option('-c, --config <path>', '配置文件路径 (.autocrrc.json|.autocrrc.js) / Config file path (.autocrrc.json|.autocrrc.js)')
+  .option('--ignore-path <path>', '忽略文件列表路径 (.autocrignore.json|.autocrignore.js) / Ignore file path (.autocrignore.json|.autocrignore.js)')
   .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
   .parse(process.argv)
 
@@ -560,6 +575,7 @@ const options = program.opts<{
   output?: string
   stdin?: boolean
   config?: string
+  ignorePath?: string
 }>()
 const cliArguments = program.args as string[]
 
@@ -580,7 +596,7 @@ try {
     const stdinTargets = await readPathsFromStdin(Boolean(options.stdin))
     const combinedTargets = [...cliArguments, ...stdinTargets]
     const filePaths = combinedTargets.map((target) => path.resolve(process.cwd(), target))
-    const result = await run(filePaths, options.ruleDir, outputFormat, options.config)
+    const result = await run(filePaths, options.ruleDir, outputFormat, options.config, options.ignorePath)
     const t = getTranslator()
 
     if (outputFormat === 'json') {

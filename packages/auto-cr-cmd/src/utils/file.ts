@@ -13,17 +13,27 @@ export const readFile = (path: string) => {
 export function getAllFiles(
   dirPath: string,
   arrayOfFiles: string[] = [],
-  extensions: string[] = ['.ts', '.tsx', '.js', '.jsx']
+  extensions: string[] = ['.ts', '.tsx', '.js', '.jsx'],
+  options: { skipNodeModules?: boolean; shouldIgnore?: (fullPath: string, isDirectory: boolean) => boolean } = {}
 ): string[] {
   if (!fs.existsSync(dirPath)) return arrayOfFiles
 
+  const { skipNodeModules = true } = options
   const files = fs.readdirSync(dirPath)
 
   files.forEach((file) => {
     const fullPath = path.join(dirPath, file)
+    const stats = fs.statSync(fullPath)
 
-    if (fs.statSync(fullPath).isDirectory()) {
-      arrayOfFiles = getAllFiles(fullPath, arrayOfFiles, extensions)
+    if (options.shouldIgnore && options.shouldIgnore(fullPath, stats.isDirectory())) {
+      return
+    }
+
+    if (stats.isDirectory()) {
+      if (skipNodeModules && file === 'node_modules') {
+        return
+      }
+      arrayOfFiles = getAllFiles(fullPath, arrayOfFiles, extensions, options)
     } else {
       if (extensions?.some((ext) => fullPath.endsWith(ext))) {
         arrayOfFiles.push(fullPath)

@@ -43,7 +43,8 @@ Common flags:
 - `--language <zh|en>`: Switch CLI output language (defaults to auto-detection).
 - `--rule-dir <directory>`: Load additional custom rules from a directory or package.
 - `--output <text|json>`: Choose between human-friendly text logs or structured JSON results (defaults to `text`).
-- `--config <path>`: Point to a `.autocrrc.json` / `.autocrrc.js` file to enable/disable rules.
+- `--config <path>`: Point to a `.autocrrc.json` or `.autocrrc.js` file to enable/disable rules.
+- `--ignore-path <path>`: Point to a `.autocrignore.json` or `.autocrignore.js` file to exclude files/directories from scanning.
 - `--help`: Display the full command reference.
 
 Sample output:
@@ -111,7 +112,7 @@ npx auto-cr-cmd --output json -- ./src | jq
 
 ## Configuration (.autocrrc)
 
-- Place a `.autocrrc.json` or `.autocrrc.js` in your repo root (search order: `.autocrrc.json`, `.autocrrc.js`, `.autocrrc.cjs`). Use `--config <path>` to point elsewhere.
+- Place `.autocrrc.json` or `.autocrrc.js` in your repo root (search order as listed). Use `--config <path>` to point elsewhere.
 - `rules` accepts `off | warning | error | optimizing | true/false | 0/1/2`; unspecified rules keep their default severity.
 
 ```jsonc
@@ -124,13 +125,27 @@ npx auto-cr-cmd --output json -- ./src | jq
 }
 ```
 
+### Ignore paths (.autocrignore)
+
+- Place `.autocrignore.json` or `.autocrignore.js` in repo root (search order as listed), or pass `--ignore-path <file>`.
+- Supports glob patterns (picomatch) via JSON/JS arrays (`{ ignore: [...] }`).
+
 ```js
-// .autocrrc.js
+// .autocrignore.js
 module.exports = {
-  rules: {
-    'no-swallowed-errors': 'warning', // override severity
-    'no-deep-relative-imports': true  // keep default severity
-  }
+  ignore: ['node_modules', 'dist/**', '**/*.test.ts', 'public/**']
+}
+```
+
+```json
+// .autocrignore.json
+{
+  "ignore": [
+    "node_modules",
+    "dist/**",
+    "**/*.test.ts",
+    "public/**"
+  ]
 }
 ```
 

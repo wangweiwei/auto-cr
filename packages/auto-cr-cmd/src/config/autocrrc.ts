@@ -3,7 +3,7 @@ import path from 'path'
 import { RuleSeverity, type Rule } from 'auto-cr-rules'
 import { getTranslator } from '../i18n'
 
-const RC_CANDIDATES = ['.autocrrc.json', '.autocrrc.js', '.autocrrc.cjs']
+const RC_CANDIDATES = ['.autocrrc.json', '.autocrrc.js']
 
 type RuleSettingInput =
   | RuleSeverity
@@ -132,8 +132,12 @@ function readConfigFile(filePath: string): unknown {
     return JSON.parse(raw)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require(filePath)
+  if (filePath.endsWith('.js')) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require(filePath)
+  }
+
+  return {}
 }
 
 function unwrapDefault(value: unknown): unknown {

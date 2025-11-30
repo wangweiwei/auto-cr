@@ -22,6 +22,9 @@ interface Translator {
   autocrrcInvalidRulesField(params: { path: string }): string
   autocrrcInvalidRuleSetting(params: { ruleName: string; value: string }): string
   autocrrcAllRulesDisabled(): string
+  autocrignorePathMissing(params: { path: string }): string
+  autocrignoreLoadFailed(params: { path: string; error: string }): string
+  autocrignoreInvalidFormat(params: { path: string }): string
   tsconfigReadFailed(): string
   reporterSeverityLabel(params: { severity: RuleSeverity }): string
   reporterSeverityIcon(params: { severity: RuleSeverity }): string
@@ -57,6 +60,9 @@ const translations = {
     autocrrcInvalidRuleSetting: ({ ruleName, value }) =>
       `规则 ${ruleName} 的配置值无效: ${value}。可选: off | warning | error | optimizing | true/false | 0/1/2`,
     autocrrcAllRulesDisabled: () => '配置已关闭所有规则，跳过扫描',
+    autocrignorePathMissing: ({ path }) => `忽略文件不存在: ${path}`,
+    autocrignoreLoadFailed: ({ path, error }) => `读取 .autocrignore 失败 (${path}): ${error}`,
+    autocrignoreInvalidFormat: ({ path }) => `忽略文件格式无效（需提供字符串数组或逐行模式）: ${path}`,
     tsconfigReadFailed: () => '警告: 无法读取 tsconfig.json',
     reporterSeverityLabel: ({ severity }) => {
       const labels: Record<RuleSeverity, string> = {
@@ -119,6 +125,9 @@ const translations = {
     autocrrcInvalidRuleSetting: ({ ruleName, value }) =>
       `Invalid setting for rule ${ruleName}: ${value}. Use off | warning | error | optimizing | true/false | 0/1/2`,
     autocrrcAllRulesDisabled: () => 'All rules are disabled by config; skipping scan',
+    autocrignorePathMissing: ({ path }) => `Ignore file not found: ${path}`,
+    autocrignoreLoadFailed: ({ path, error }) => `Failed to read .autocrignore (${path}): ${error}`,
+    autocrignoreInvalidFormat: ({ path }) => `Invalid ignore file format (expect string array or line-based list): ${path}`,
     tsconfigReadFailed: () => 'Warning: Failed to read tsconfig.json',
     reporterSeverityLabel: ({ severity }) => {
       const labels: Record<RuleSeverity, string> = {
