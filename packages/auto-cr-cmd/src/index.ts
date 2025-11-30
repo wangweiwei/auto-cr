@@ -11,6 +11,7 @@ import { readFile, getAllFiles, checkPathExists } from './utils/file'
 import { readPathsFromStdin } from './utils/stdin'
 import { builtinRules, createRuleContext, RuleSeverity } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
+import { applyRuleConfig, loadAutoCrRc } from './config/autocrrc'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
 
 consola.options.formatOptions = {
@@ -70,7 +71,8 @@ const consolaLoggers = {
 async function run(
   filePaths: string[] = [],
   ruleDir: string | undefined,
-  format: OutputFormat
+  format: OutputFormat,
+  configPath?: string
 ): Promise<ScanSummary> {
   const t = getTranslator()
   const notifications: Notification[] = []
@@ -159,10 +161,16 @@ async function run(
 
     const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts'))
     const customRules = loadCustomRules(ruleDir)
-    const rules: Rule[] = [...builtinRules, ...customRules]
+    const rcConfig = loadAutoCrRc(configPath)
+
+    rcConfig.warnings.forEach((warning) => log('warn', warning))
+
+    const rules: Rule[] = applyRuleConfig([...builtinRules, ...customRules], rcConfig.rules, (warning) =>
+      log('warn', warning)
+    )
 
     if (rules.length === 0) {
-      log('warn', t.noRulesLoaded())
+      log('warn', rcConfig.rules ? t.autocrrcAllRulesDisabled() : t.noRulesLoaded())
       return {
         scannedFiles: 0,
         filesWithErrors: 0,
@@ -542,6 +550,7 @@ program
   .option('-r, --rule-dir <directory>', '自定义规则目录路径 / Custom rule directory')
   .option('-l, --language <language>', '设置 CLI 语言 (zh/en) / Set CLI language (zh/en)')
   .option('-o, --output <format>', '设置输出格式 (text/json) / Output format (text/json)', 'text')
+  .option('-c, --config <path>', '配置文件路径 (.autocrrc.json|.autocrrc.js) / Config file path (.autocrrc.json|.autocrrc.js)')
   .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
   .parse(process.argv)
 
@@ -550,6 +559,7 @@ const options = program.opts<{
   language?: string
   output?: string
   stdin?: boolean
+  config?: string
 }>()
 const cliArguments = program.args as string[]
 
@@ -570,7 +580,7 @@ try {
     const stdinTargets = await readPathsFromStdin(Boolean(options.stdin))
     const combinedTargets = [...cliArguments, ...stdinTargets]
     const filePaths = combinedTargets.map((target) => path.resolve(process.cwd(), target))
-    const result = await run(filePaths, options.ruleDir, outputFormat)
+    const result = await run(filePaths, options.ruleDir, outputFormat, options.config)
     const t = getTranslator()
 
     if (outputFormat === 'json') {

@@ -43,6 +43,7 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 - `--language <zh|en>`：切换 CLI 输出语言（默认为自动检测）。
 - `--rule-dir <directory>`：加载额外的自定义规则目录或包。
 - `--output <text|json>`：选择输出格式，`text` 为友好的终端日志，`json` 用于集成脚本（默认为 `text`）。
+- `--config <path>`：指定 `.autocrrc.json` / `.autocrrc.js` 配置文件路径，用于开启/关闭规则。
 - `--help`：查看完整命令说明。
 
 示例输出：
@@ -105,6 +106,31 @@ npx auto-cr-cmd --output json -- ./src | jq
     }
   ],
   "notifications": []
+}
+```
+
+## 配置（.autocrrc）
+
+- 在仓库根目录放置 `.autocrrc.json` 或 `.autocrrc.js`（搜索顺序：`.autocrrc.json`、`.autocrrc.js`、`.autocrrc.cjs`）；如需放在其他位置，可通过 `--config <path>` 指定。
+- `rules` 支持的值：`off | warning | error | optimizing | true/false | 0/1/2`，未写明的规则沿用默认严重级别。
+
+```jsonc
+// .autocrrc.json
+{
+  "rules": {
+    "no-deep-relative-imports": "error",
+    "no-swallowed-errors": "off"
+  }
+}
+```
+
+```js
+// .autocrrc.js
+module.exports = {
+  rules: {
+    'no-swallowed-errors': 'warning', // 覆盖严重级别
+    'no-deep-relative-imports': true  // 保持规则默认严重级别
+  }
 }
 ```
 

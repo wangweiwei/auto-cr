@@ -16,6 +16,12 @@ interface Translator {
   customRuleDirMissing(params: { path: string }): string
   customRuleNoExport(params: { file: string }): string
   customRuleLoadFailed(params: { file: string }): string
+  autocrrcPathMissing(params: { path: string }): string
+  autocrrcLoadFailed(params: { path: string; error: string }): string
+  autocrrcInvalidFormat(params: { path: string }): string
+  autocrrcInvalidRulesField(params: { path: string }): string
+  autocrrcInvalidRuleSetting(params: { ruleName: string; value: string }): string
+  autocrrcAllRulesDisabled(): string
   tsconfigReadFailed(): string
   reporterSeverityLabel(params: { severity: RuleSeverity }): string
   reporterSeverityIcon(params: { severity: RuleSeverity }): string
@@ -44,6 +50,13 @@ const translations = {
     customRuleDirMissing: ({ path }) => `自定义规则目录不存在: ${path}`,
     customRuleNoExport: ({ file }) => `规则文件未导出任何可用规则: ${file}`,
     customRuleLoadFailed: ({ file }) => `加载自定义规则失败: ${file}`,
+    autocrrcPathMissing: ({ path }) => `配置文件不存在: ${path}`,
+    autocrrcLoadFailed: ({ path, error }) => `读取 .autocrrc 配置失败 (${path}): ${error}`,
+    autocrrcInvalidFormat: ({ path }) => `配置文件格式无效（需导出对象）: ${path}`,
+    autocrrcInvalidRulesField: ({ path }) => `配置文件 rules 字段必须是对象: ${path}`,
+    autocrrcInvalidRuleSetting: ({ ruleName, value }) =>
+      `规则 ${ruleName} 的配置值无效: ${value}。可选: off | warning | error | optimizing | true/false | 0/1/2`,
+    autocrrcAllRulesDisabled: () => '配置已关闭所有规则，跳过扫描',
     tsconfigReadFailed: () => '警告: 无法读取 tsconfig.json',
     reporterSeverityLabel: ({ severity }) => {
       const labels: Record<RuleSeverity, string> = {
@@ -99,6 +112,13 @@ const translations = {
     customRuleDirMissing: ({ path }) => `Custom rule directory does not exist: ${path}`,
     customRuleNoExport: ({ file }) => `Rule file does not export any usable rules: ${file}`,
     customRuleLoadFailed: ({ file }) => `Failed to load custom rule: ${file}`,
+    autocrrcPathMissing: ({ path }) => `Config file not found: ${path}`,
+    autocrrcLoadFailed: ({ path, error }) => `Failed to read .autocrrc config (${path}): ${error}`,
+    autocrrcInvalidFormat: ({ path }) => `Invalid config format (should export an object): ${path}`,
+    autocrrcInvalidRulesField: ({ path }) => `Config "rules" field must be an object: ${path}`,
+    autocrrcInvalidRuleSetting: ({ ruleName, value }) =>
+      `Invalid setting for rule ${ruleName}: ${value}. Use off | warning | error | optimizing | true/false | 0/1/2`,
+    autocrrcAllRulesDisabled: () => 'All rules are disabled by config; skipping scan',
     tsconfigReadFailed: () => 'Warning: Failed to read tsconfig.json',
     reporterSeverityLabel: ({ severity }) => {
       const labels: Record<RuleSeverity, string> = {

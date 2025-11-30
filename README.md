@@ -43,6 +43,7 @@ Common flags:
 - `--language <zh|en>`: Switch CLI output language (defaults to auto-detection).
 - `--rule-dir <directory>`: Load additional custom rules from a directory or package.
 - `--output <text|json>`: Choose between human-friendly text logs or structured JSON results (defaults to `text`).
+- `--config <path>`: Point to a `.autocrrc.json` / `.autocrrc.js` file to enable/disable rules.
 - `--help`: Display the full command reference.
 
 Sample output:
@@ -105,6 +106,31 @@ npx auto-cr-cmd --output json -- ./src | jq
     }
   ],
   "notifications": []
+}
+```
+
+## Configuration (.autocrrc)
+
+- Place a `.autocrrc.json` or `.autocrrc.js` in your repo root (search order: `.autocrrc.json`, `.autocrrc.js`, `.autocrrc.cjs`). Use `--config <path>` to point elsewhere.
+- `rules` accepts `off | warning | error | optimizing | true/false | 0/1/2`; unspecified rules keep their default severity.
+
+```jsonc
+// .autocrrc.json
+{
+  "rules": {
+    "no-deep-relative-imports": "error",
+    "no-swallowed-errors": "off"
+  }
+}
+```
+
+```js
+// .autocrrc.js
+module.exports = {
+  rules: {
+    'no-swallowed-errors': 'warning', // override severity
+    'no-deep-relative-imports': true  // keep default severity
+  }
 }
 ```
 
