@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import type { EsParserConfig, JscTarget, ParseOptions, TsParserConfig } from '@swc/types'
+import { parse, type ParseError, printParseErrorCode } from 'jsonc-parser'
 import { getTranslator } from './i18n'
 import consola from 'consola'
 
@@ -22,6 +23,24 @@ export function setTsConfigPath(path?: string): void {
   cachedTsConfig = undefined
 }
 
+function getLineAndColumn(text: string, offset: number): { line: number; column: number } {
+  const prefix = text.slice(0, offset)
+  const lines = prefix.split(/\r?\n/)
+  const line = lines.length
+  const column = lines[lines.length - 1].length + 1
+
+  return { line, column }
+}
+
+function formatParseErrors(errors: ParseError[], content: string): string {
+  return errors
+    .map(({ error, offset }) => {
+      const { line, column } = getLineAndColumn(content, offset)
+      return `${printParseErrorCode(error)} at ${line}:${column}`
+    })
+    .join('; ')
+}
+
 function readTsConfig(): TsConfig | null {
   if (cachedTsConfig !== undefined) {
     return cachedTsConfig
@@ -36,7 +55,20 @@ function readTsConfig(): TsConfig | null {
 
   try {
     const raw = fs.readFileSync(tsConfigPath, 'utf-8')
-    cachedTsConfig = JSON.parse(raw) as TsConfig
+    const errors: ParseError[] = []
+    const parsed = parse(raw, errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    })
+
+    if (errors.length > 0) {
+      cachedTsConfig = null
+      const t = getTranslator()
+      consola.warn(t.tsconfigReadFailed(), formatParseErrors(errors, raw))
+      return cachedTsConfig
+    }
+
+    cachedTsConfig = parsed as TsConfig
   } catch (error) {
     cachedTsConfig = null
     const t = getTranslator()
