@@ -53,7 +53,7 @@ importers:
         version: 9.38.0(jiti@2.6.1)
       eslint-plugin-prettier:
         specifier: ^5.5.4
-        version: 5.5.4(eslint@9.38.0(jiti@2.6.1))(prettier@3.6.2)
+        version: 5.5.4(eslint@9.38.0(jiti@2.6.1))(prettier@3.7.4)
       globals:
         specifier: ^16.3.0
         version: 16.4.0
@@ -61,11 +61,11 @@ importers:
         specifier: ^2.5.1
         version: 2.6.1
       prettier:
-        specifier: ^3.6.2
-        version: 3.6.2
+        specifier: ^3.7.4
+        version: 3.7.4
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.15.4)(@swc/wasm@1.14.0)(@types/node@24.9.2)(typescript@5.9.3)
+        version: 10.9.2(@swc/core@1.15.4)(@swc/wasm@1.14.0)(@types/node@24.10.1)(typescript@5.9.3)
       tslib:
         specifier: ^2.8.1
         version: 2.8.1
@@ -651,8 +651,8 @@ packages:
     resolution: {integrity: sha512-GbK2cP9nraSSUF9N2XwUwqfzlAFlMNYYl+ShE/V+H8a9uNl/oUqB1w2EL54Jh0OlyRSd8RfWYJ3coVS4TROP2w==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.6.2:
-    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+  prettier@3.7.4:
+    resolution: {integrity: sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -1081,10 +1081,10 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-plugin-prettier@5.5.4(eslint@9.38.0(jiti@2.6.1))(prettier@3.6.2):
+  eslint-plugin-prettier@5.5.4(eslint@9.38.0(jiti@2.6.1))(prettier@3.7.4):
     dependencies:
       eslint: 9.38.0(jiti@2.6.1)
-      prettier: 3.6.2
+      prettier: 3.7.4
       prettier-linter-helpers: 1.0.0
       synckit: 0.11.11
 
@@ -1291,7 +1291,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.6.2: {}
+  prettier@3.7.4: {}
 
   punycode@2.3.1: {}
 
@@ -1324,7 +1324,7 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  ts-node@10.9.2(@swc/core@1.15.4)(@swc/wasm@1.14.0)(@types/node@24.9.2)(typescript@5.9.3):
+  ts-node@10.9.2(@swc/core@1.15.4)(@swc/wasm@1.14.0)(@types/node@24.10.1)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
