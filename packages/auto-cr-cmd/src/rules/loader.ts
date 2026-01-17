@@ -6,8 +6,10 @@ import { getTranslator } from '../i18n'
 import type { Rule } from 'auto-cr-rules'
 import { toRule } from 'auto-cr-rules'
 
+// 自定义规则加载器：只解析 JS/CJS/MJS 文件，便于在运行时动态引入。
 const SUPPORTED_EXTENSIONS = ['.js', '.cjs', '.mjs']
 
+// 从指定目录读取规则文件，并转换为 Rule 列表。
 export function loadCustomRules(ruleDir?: string): Rule[] {
   const t = getTranslator()
   if (!ruleDir) {
@@ -30,6 +32,7 @@ export function loadCustomRules(ruleDir?: string): Rule[] {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const moduleExports = require(file)
+      // 支持模块直接导出 rule / rules / default / 数组。
       const rules = extractRules(moduleExports, file)
 
       if (!rules.length) {
@@ -49,6 +52,7 @@ export function loadCustomRules(ruleDir?: string): Rule[] {
   return loaded
 }
 
+// 兼容多种导出形态：默认导出、命名导出或数组。
 function extractRules(moduleExports: unknown, origin: string): Rule[] {
   const collected: Rule[] = []
 
@@ -73,6 +77,7 @@ function extractRules(moduleExports: unknown, origin: string): Rule[] {
   return collected
 }
 
+// 把候选导出统一转为 Rule；无法识别的会被忽略。
 function normalizeCandidate(candidate: unknown, origin: string): Rule[] {
   if (!candidate) {
     return []

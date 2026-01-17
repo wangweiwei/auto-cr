@@ -3,6 +3,7 @@ import path from 'path'
 import picomatch from 'picomatch'
 import { getTranslator } from '../i18n'
 
+// 忽略文件候选名（从当前工作目录开始查找）。
 const IGNORE_CANDIDATES = ['.autocrignore.json', '.autocrignore.js']
 
 export interface LoadedIgnoreConfig {
@@ -12,6 +13,7 @@ export interface LoadedIgnoreConfig {
   warnings: string[]
 }
 
+// 加载忽略配置：支持 JSON/JS/文本多种形式，失败仅输出 warning。
 export function loadIgnoreConfig(configPath?: string): LoadedIgnoreConfig {
   const warnings: string[] = []
   const t = getTranslator()
@@ -44,6 +46,7 @@ export function loadIgnoreConfig(configPath?: string): LoadedIgnoreConfig {
   }
 }
 
+// 构建忽略匹配器，匹配绝对路径与相对路径两种形式。
 export function createIgnoreMatcher(patterns: string[], baseDir: string = process.cwd()): (candidate: string) => boolean {
   if (!patterns.length) {
     return () => false
@@ -62,6 +65,7 @@ export function createIgnoreMatcher(patterns: string[], baseDir: string = proces
   }
 }
 
+// 解析忽略配置路径：显式传入优先，其次按候选名查找。
 function resolveConfigPath(explicitPath?: string): string | null {
   if (explicitPath) {
     return path.isAbsolute(explicitPath) ? explicitPath : path.resolve(process.cwd(), explicitPath)
@@ -77,6 +81,7 @@ function resolveConfigPath(explicitPath?: string): string | null {
   return null
 }
 
+// 读取忽略文件：JSON/JS 导出均可。
 function readIgnoreFile(filePath: string): unknown {
   if (filePath.endsWith('.json')) {
     const raw = fs.readFileSync(filePath, 'utf-8')
@@ -91,6 +96,8 @@ function readIgnoreFile(filePath: string): unknown {
   return []
 }
 
+// 规范化 ignore 内容：
+// - 支持字符串数组 / 单个字符串（按行拆分）/ { ignore } / { default }。
 function normalizeIgnorePayload(payload: unknown): string[] {
   const values: string[] = []
 
@@ -117,6 +124,7 @@ function normalizeIgnorePayload(payload: unknown): string[] {
   return values
 }
 
+// 过滤空行与注释行。
 function normalizeEntry(entry: unknown): string | null {
   if (typeof entry !== 'string') {
     return null
@@ -135,6 +143,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+// 统一路径分隔符为 POSIX，保证跨平台匹配一致。
 function toPosix(p: string): string {
   return p.split(path.sep).join('/')
 }

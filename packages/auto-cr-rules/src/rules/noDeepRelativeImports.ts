@@ -2,11 +2,12 @@ import { RuleSeverity, defineRule } from '../types'
 
 const MAX_DEPTH = 2
 
+// 检测相对路径过深的导入，避免维护困难与重构风险。
 export const noDeepRelativeImports = defineRule(
   'no-deep-relative-imports',
   { tag: 'base', severity: RuleSeverity.Warning },
   ({ ast, helpers, messages, language, source }) => {
-    // Build a per-file line index so we can convert byte offsets emitted by SWC back to line numbers.
+    // 构建行号索引，方便将 SWC 的 byte offset 转为行号。
     const moduleStart = ast.span?.start ?? 0
     const lineIndex = buildLineIndex(source)
 
@@ -31,11 +32,12 @@ export const noDeepRelativeImports = defineRule(
                 { text: 'Create an index file at a higher level to re-export the module and shorten the import.' },
               ]
 
+        // 优先使用 span 计算行号，若异常则退回到文本匹配。
         const computedLine = reference.span
           ? resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, reference.span.start))
           : undefined
         const fallbackLine = findImportLine(source, reference.value)
-        // Prefer the larger value so we never point at leading block comments when the byte offset is truncated.
+        // 取更大的行号，避免 span 截断时指向注释块。
         const line = selectLineNumber(computedLine, fallbackLine)
 
         helpers.reportViolation(

@@ -1,5 +1,6 @@
 import type { Module, Span } from '@swc/types'
 
+// 规则文案与 CLI 支持的语言标识。
 export type Language = 'zh' | 'en'
 
 export interface RuleReporter {
@@ -9,6 +10,7 @@ export interface RuleReporter {
   record?(record: RuleReporterRecord): void
 }
 
+// 规则严重级别，决定 reporter 的输出样式与统计。
 export enum RuleSeverity {
   Error = 'error',
   Warning = 'warning',
@@ -45,12 +47,14 @@ export interface ImportReference {
   span?: Span
 }
 
+// 规则文案接口（由 messages.ts 实现）。
 export interface RuleMessages {
   noDeepRelativeImports(params: { value: string; maxDepth: number }): string
   swallowedError(): string
   circularDependency(params: { chain: string }): string
 }
 
+// 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。
 export interface RuleHelpers {
   readonly imports: ReadonlyArray<ImportReference>
   isRelativePath(value: string): boolean
@@ -58,6 +62,7 @@ export interface RuleHelpers {
   reportViolation(input: RuleViolationInput, span?: Span): void
 }
 
+// 规则执行上下文：包含 AST/源码/语言/工具方法。
 export interface RuleContext {
   readonly filePath: string
   readonly source: string
@@ -68,6 +73,7 @@ export interface RuleContext {
   readonly messages: RuleMessages
 }
 
+// 规则元数据（用于 tag/严重级别等）。
 export interface RuleMetadata {
   tag?: string
   severity?: RuleSeverity

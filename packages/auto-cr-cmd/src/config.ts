@@ -5,6 +5,8 @@ import { parse, type ParseError, printParseErrorCode } from 'jsonc-parser'
 import { getTranslator } from './i18n'
 import consola from 'consola'
 
+// 读取并解析 tsconfig.json，推导 SWC 解析参数（target/jsx/decorators 等）。
+// 这里使用 jsonc-parser 以兼容 tsconfig 中的注释与尾逗号。
 interface TsCompilerOptions {
   jsx?: string
   target?: string
@@ -15,6 +17,7 @@ interface TsConfig {
   compilerOptions?: TsCompilerOptions
 }
 
+// 缓存 tsconfig 解析结果，避免每个文件都重复读取与解析。
 let cachedTsConfig: TsConfig | null | undefined
 let tsConfigPathOverride: string | null = null
 
@@ -41,6 +44,7 @@ function formatParseErrors(errors: ParseError[], content: string): string {
     .join('; ')
 }
 
+// 读取并解析 tsconfig；失败时只记录警告，不中断扫描流程。
 function readTsConfig(): TsConfig | null {
   if (cachedTsConfig !== undefined) {
     return cachedTsConfig
@@ -146,6 +150,7 @@ function createEsParserConfig(extension: string, options: TsCompilerOptions | un
   }
 }
 
+// 按文件扩展名推导 SWC 的 parser 选项，并结合 tsconfig 的 target/decorators。
 export function loadParseOptions(filePath: string): ParseOptions {
   const extension = path.extname(filePath).toLowerCase()
   const tsConfig = readTsConfig()

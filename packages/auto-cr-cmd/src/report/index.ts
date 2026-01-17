@@ -4,12 +4,14 @@ import type { Rule, RuleReporter } from 'auto-cr-rules'
 import consola from 'consola'
 import { getLanguage, getTranslator } from '../i18n'
 
+// Reporter 负责收集规则输出，必要时直接输出到终端（text 模式），并生成结构化汇总。
 export type ReporterFormat = 'text' | 'json'
 
 interface ReporterOptions {
   format?: ReporterFormat
 }
 
+// Reporter 除了复用 RuleReporter 方法外，还提供按规则隔离的 reporter 与最终汇总能力。
 export interface Reporter extends RuleReporter {
   forRule(rule: Pick<Rule, 'name' | 'tag' | 'severity'>): RuleReporter
   flush(): ReporterSummary
@@ -63,6 +65,7 @@ type CompatibleRuleReporter = RuleReporter & {
 
 const UNTAGGED_TAG = 'untagged'
 const DEFAULT_FORMAT: ReporterFormat = 'text'
+// 不同严重级别映射到不同日志级别。
 const severityLoggers: Record<Severity, (message?: unknown, ...args: unknown[]) => void> = {
   [RuleSeverity.Error]: consola.error,
   [RuleSeverity.Warning]: consola.warn,
@@ -80,6 +83,7 @@ export function createReporter(
   const records: ViolationRecord[] = []
   const format = options.format ?? DEFAULT_FORMAT
 
+  // 累计单文件的违规统计，便于输出文件级 summary。
   let totalViolations = 0
   let errorViolations = 0
   const severityCounts = {
@@ -137,6 +141,7 @@ export function createReporter(
     const tag = rule.tag ?? UNTAGGED_TAG
     const severity = rule.severity ?? RuleSeverity.Error
 
+    // 规则级 reporter 会把具体信息写入 records。
     const store = (payload: {
       message: string
       line?: number
@@ -194,6 +199,7 @@ export function createReporter(
     return reporterWithRecord
   }
 
+  // flush 会输出（text 模式）并返回结构化 summary，同时重置内部状态。
   const flush = (): ReporterSummary => {
     const violationSnapshot = records.map((record) => ({
       ...record,
@@ -256,6 +262,7 @@ export function createReporter(
     return summary
   }
 
+  // 每次 flush 后清零，避免跨文件混淆统计。
   const resetCounters = (): void => {
     totalViolations = 0
     errorViolations = 0

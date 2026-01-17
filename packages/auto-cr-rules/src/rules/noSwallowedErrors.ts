@@ -1,6 +1,7 @@
 import type { BlockStatement, Module, Statement, TryStatement } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
 
+// 检测 try/catch/finally 中未处理任何可执行语句的情况（吞掉异常）。
 export const noSwallowedErrors = defineRule(
   'no-swallowed-errors',
   { tag: 'base', severity: RuleSeverity.Warning },
@@ -15,10 +16,12 @@ export const noSwallowedErrors = defineRule(
       const catchHasExecutable = catchBlock ? hasExecutableStatements(catchBlock.stmts) : false
       const finallyHasExecutable = finallyBlock ? hasExecutableStatements(finallyBlock.stmts) : false
 
+      // 任意一段有真实逻辑，则认为异常被处理或至少被记录。
       if (catchHasExecutable || finallyHasExecutable) {
         return
       }
 
+      // 尽量指向 catch/finally 块本身，保证定位直观。
       const reportSpan = catchBlock?.span ?? finallyBlock?.span ?? tryStatement.span
       const charIndex = bytePosToCharIndex(source, moduleStart, reportSpan.start)
       const computedLine = resolveLine(lineIndex, charIndex)

@@ -36,6 +36,7 @@ interface Translator {
   ruleTagLabel(params: { tag: string }): string
 }
 
+// 中英文文案表：CLI 与 reporter 统一从这里取文案，避免散落硬编码。
 const translations = {
   zh: {
     noPathsProvided: () => '未提供文件或目录路径，跳过代码扫描',
@@ -169,9 +170,11 @@ const translations = {
   },
 } satisfies Record<Language, Translator>
 
+// 当前语言与翻译器为全局单例，方便在各处同步使用。
 let currentLanguage: Language = 'zh'
 let currentTranslator: Translator = translations.zh
 
+// 对输入语言进行归一化，未知语言回退到中文。
 export function normalizeLanguage(input?: string): Language {
   if (!input) {
     return 'zh'
@@ -197,10 +200,12 @@ export function setLanguage(language?: string): Translator {
   return currentTranslator
 }
 
+// 获取当前语言标识（用于 reporter 输出与规则文案）。
 export function getLanguage(): Language {
   return currentLanguage
 }
 
+// 获取当前翻译器（用于 CLI/报错/提示文案）。
 export function getTranslator(): Translator {
   return currentTranslator
 }

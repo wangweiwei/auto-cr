@@ -3,12 +3,15 @@ import path from 'path'
 import { consola } from 'consola'
 import { getTranslator } from '../i18n'
 
+// 统一读取文本文件（UTF-8），供解析与规则执行使用。
 export const readFile = (path: string) => {
   return fs.readFileSync(path, 'utf-8')
 }
 
 /**
  * 递归获取目录下所有 TypeScript 和 JavaScript 文件
+ * - 默认跳过 node_modules
+ * - 可通过 shouldIgnore 进一步过滤路径
  */
 export function getAllFiles(
   dirPath: string,

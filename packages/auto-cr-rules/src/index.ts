@@ -1,3 +1,4 @@
+// 统一导出规则类型、运行时与内置规则集合。
 export type {
   ImportReference,
   Language,

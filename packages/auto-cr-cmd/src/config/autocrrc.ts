@@ -3,6 +3,7 @@ import path from 'path'
 import { RuleSeverity, type Rule } from 'auto-cr-rules'
 import { getTranslator } from '../i18n'
 
+// 支持的配置文件候选名（从当前工作目录开始查找）。
 const RC_CANDIDATES = ['.autocrrc.json', '.autocrrc.js']
 
 type RuleSettingInput =
@@ -27,6 +28,7 @@ export interface LoadedAutoCrRc {
   warnings: string[]
 }
 
+// 读取 .autocrrc 并校验结构；任何解析失败都转成 warning 不中断扫描。
 export function loadAutoCrRc(configPath?: string): LoadedAutoCrRc {
   const warnings: string[] = []
   const t = getTranslator()
@@ -67,6 +69,7 @@ export function loadAutoCrRc(configPath?: string): LoadedAutoCrRc {
   }
 }
 
+// 将 rules 配置应用到内置/自定义规则上，支持关闭与调整 severity。
 export function applyRuleConfig(
   rules: Rule[],
   ruleSettings: Record<string, RuleSettingInput> | undefined,
@@ -111,6 +114,7 @@ export function applyRuleConfig(
   return configured
 }
 
+// 优先使用显式路径，否则在工作目录内按候选名查找。
 function resolveConfigPath(explicitPath?: string): string | null {
   if (explicitPath) {
     return path.isAbsolute(explicitPath) ? explicitPath : path.resolve(process.cwd(), explicitPath)
@@ -126,6 +130,7 @@ function resolveConfigPath(explicitPath?: string): string | null {
   return null
 }
 
+// 读取配置文件：支持 JSON 与 JS 导出。
 function readConfigFile(filePath: string): unknown {
   if (filePath.endsWith('.json')) {
     const raw = fs.readFileSync(filePath, 'utf-8')
@@ -140,6 +145,7 @@ function readConfigFile(filePath: string): unknown {
   return {}
 }
 
+// 兼容 default 导出（CommonJS/ESM）。
 function unwrapDefault(value: unknown): unknown {
   if (isRecord(value) && 'default' in value) {
     return (value as { default?: unknown }).default ?? value
@@ -152,6 +158,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+// 统一配置格式：支持字符串/数字/布尔值等多种简写形式。
 function normalizeRuleSetting(input: RuleSettingInput): RuleSeverity | 'off' | null | undefined {
   if (input === undefined) {
     return undefined

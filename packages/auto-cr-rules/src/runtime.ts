@@ -18,6 +18,7 @@ export interface RuleContextOptions {
   language: Language
 }
 
+// 构建规则执行所需的上下文：包含 AST、imports、文案与统一的 helper 方法。
 export const createRuleContext = ({
   ast,
   filePath,
@@ -40,6 +41,7 @@ export const createRuleContext = ({
   }) as RuleContext
 }
 
+// 规则 helper：统一封装路径判断、相对深度与违规上报逻辑。
 const createRuleHelpers = (reporter: RuleReporter, imports: ReturnType<typeof collectImportReferences>): RuleHelpers => {
   const isRelativePath = (value: string): boolean => value.startsWith('.')
 
@@ -47,6 +49,7 @@ const createRuleHelpers = (reporter: RuleReporter, imports: ReturnType<typeof co
     return (value.match(/\.\.\//g) || []).length
   }
 
+  // reportViolation 可兼容 string 或结构化对象，并自动选择合适的 reporter 方法。
   const reportViolation = (
     input: RuleViolationInput,
     spanArg?: Parameters<RuleReporter['errorAtSpan']>[0]
@@ -81,6 +84,7 @@ const createRuleHelpers = (reporter: RuleReporter, imports: ReturnType<typeof co
   }
 }
 
+// 统一规则输出结构，便于 reporter 处理 span/line/suggestions。
 function normalizeViolationInput(
   input: RuleViolationInput,
   fallbackSpan?: Parameters<RuleReporter['errorAtSpan']>[0]

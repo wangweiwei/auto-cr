@@ -1,3 +1,7 @@
+// 从 STDIN 读取路径列表：
+// - 默认仅在非 TTY 时读取；
+// - 支持 NUL 分隔与换行分隔两种格式；
+// - 保留空格，仅移除空行与 CR。
 export async function readPathsFromStdin(shouldForceRead: boolean): Promise<string[]> {
   const shouldRead = shouldForceRead || !process.stdin.isTTY
 
@@ -40,13 +44,13 @@ export async function readPathsFromStdin(shouldForceRead: boolean): Promise<stri
           return finish([])
         }
 
-        // Prefer NUL-delimited when present; else fall back to newline.
+        // 优先使用 NUL 分隔（适配 xargs -0 等工具），否则按换行切分。
         const hasNul = buf.includes(0) // 0x00
         const payload = buf.toString('utf8')
 
         const parts = hasNul ? payload.split('\0') : payload.split(/\r?\n/)
 
-        // Preserve spaces in filenames; only strip stray CR and drop empties.
+        // 保留文件名中的空格，只去掉末尾 CR 并过滤空行。
         const lines = parts
           .map((s) => (s.endsWith('\r') ? s.slice(0, -1) : s))
           .filter((s) => s.length > 0)

@@ -409,6 +409,7 @@ function normalizeViolationInput(
   input: unknown,
   spanArg?: ReporterSpanArg
 ): NormalizedViolation {
+  // 规则既可以直接输出字符串，也可以输出结构化对象；这里统一为标准格式。
   if (typeof input === 'string') {
     return {
       message: input,
@@ -476,6 +477,7 @@ function normalizeViolationInput(
   }
 }
 
+// CLI 输出格式解析：仅允许 text/json。
 function parseOutputFormat(value?: string): OutputFormat {
   if (!value) {
     return 'text'
@@ -564,6 +566,7 @@ function formatViolationForJson(violation: ViolationRecord): JsonViolation {
 }
 
 function formatJsonOutput(result: ScanSummary): JsonOutputPayload {
+  // JSON 输出用于 CI/脚本解析，保持结构稳定。
   return {
     summary: {
       scannedFiles: result.scannedFiles,

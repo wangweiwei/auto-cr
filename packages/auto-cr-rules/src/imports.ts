@@ -10,6 +10,7 @@ import type {
 } from '@swc/types'
 import type { ImportReference } from './types'
 
+// 从 SWC AST 中抽取 import / dynamic import / require 的引用，供规则使用。
 type SwcNode = {
   type: string
 }
@@ -26,6 +27,7 @@ const isSwcNode = (value: unknown): value is SwcNode => {
   return typeof (value as { type: unknown }).type === 'string'
 }
 
+// 递归遍历 AST，遇到带 type 的节点就回调。
 const traverse = (value: unknown, visitor: (node: SwcNode) => void): void => {
   if (Array.isArray(value)) {
     for (const element of value) {
@@ -55,6 +57,7 @@ const isImportDeclaration = (node: SwcNode): node is ImportDeclaration => node.t
 
 const isCallExpression = (node: SwcNode): node is CallExpression => node.type === 'CallExpression'
 
+// 收集模块中的所有导入引用（包含动态 import 与 require）。
 export const collectImportReferences = (module: Module): ImportReference[] => {
   const results: ImportReference[] = []
 
@@ -79,6 +82,7 @@ export const collectImportReferences = (module: Module): ImportReference[] => {
   return results
 }
 
+// 从调用表达式中提取 import/require 的字符串字面量参数。
 const extractFromCallExpression = (node: CallExpression): ImportReference | null => {
   if (!node.arguments.length) {
     return null
