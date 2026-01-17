@@ -6,15 +6,18 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     env:
       TAG_VERSION: ${{ github.ref_name }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v3
         with:
           version: 10.15.1
@@ -36,3 +39,15 @@ jobs:
         run: pnpm run publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Commit version updates
+        run: |
+          if git diff --name-only | grep -E '^packages/.*/package\.json$' >/dev/null; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add packages/*/package.json
+            git commit -m "chore(release): bump package versions to ${TAG_VERSION#v}"
+            git fetch origin "${DEFAULT_BRANCH}"
+            git push origin HEAD:"${DEFAULT_BRANCH}"
+          else
+            echo "No package version changes to commit."
+          fi
