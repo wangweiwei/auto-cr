@@ -477,6 +477,12 @@ const selectLineNumber = (computed?: number, fallback?: number): number | undefi
     return fallback
   }
 
+  // 当两者只差一行时，优先使用文本匹配结果，避免出现 +1 的偏移问题。
+  if (Math.abs(computed - fallback) <= 1) {
+    return fallback
+  }
+
+  // 若 span 指向了更早的注释块，则回退到更靠后的文本行。
   if (computed < fallback) {
     return fallback
   }
