@@ -22,7 +22,7 @@
 
 ## 特性亮点（自动化代码审查 & 静态代码分析）
 
-- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`。
+- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`。
 - **可扩展 SDK**：`auto-cr-rules` 暴露 `defineRule`、`helpers.imports` 等工具，降低编写 TypeScript / JavaScript 自定义规则的复杂度。
 - **工作区管理**：使用 pnpm workspace 同时管理 CLI 与规则包，一次构建即可验证完整流程。
 - **发布友好**：内置版本递增脚本与 npm 发布命令，保持两个包的版本同步。
@@ -121,6 +121,7 @@ npx auto-cr-cmd --output json -- ./src | jq
 {
   "rules": {
     "no-deep-relative-imports": "error",
+    "no-circular-dependencies": "warning",
     "no-swallowed-errors": "off"
   }
 }

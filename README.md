@@ -22,7 +22,7 @@
 
 ## Feature Highlights (Automated Code Review & Static Analysis)
 
-- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`.
+- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, and `no-swallowed-errors`.
 - **Extensible SDK**: `auto-cr-rules` exposes helpers like `defineRule` and `helpers.imports`, reducing the friction of authoring custom TypeScript / JavaScript rules.
 - **Workspace Friendly**: Manage both the CLI and rule package via pnpm workspaces and validate the full pipeline with a single build.
 - **Publishing Toolkit**: Version bump scripts and npm publish commands keep both packages in sync.
@@ -121,6 +121,7 @@ npx auto-cr-cmd --output json -- ./src | jq
 {
   "rules": {
     "no-deep-relative-imports": "error",
+    "no-circular-dependencies": "warning",
     "no-swallowed-errors": "off"
   }
 }
