@@ -2,11 +2,20 @@ import fs from 'fs'
 import path from 'path'
 import { RuleSeverity, defineRule } from '../types'
 
+/**
+ * 检测相对路径形成的循环依赖：
+ * - 仅解析 .ts/.tsx/.js/.jsx/.mjs/.cjs；
+ * - 从当前文件的 import 出发，沿依赖图寻找回到自身的路径；
+ * - 输出完整环路链路，便于定位循环发生的文件。
+ */
 const SUPPORTED_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+// 避免在大型仓库里构图过深或过大导致卡顿。
 const MAX_GRAPH_NODES = 2000
 const MAX_GRAPH_DEPTH = 80
 
+// 跨文件缓存解析结果，减少重复 IO 与正则扫描。
 const resolvedImportCache = new Map<string, string[]>()
+// 记录已上报的环路（做规范化），避免同一环路重复报错。
 const reportedCycles = new Set<string>()
 
 export const noCircularDependencies = defineRule(
@@ -18,7 +27,7 @@ export const noCircularDependencies = defineRule(
     const moduleStart = ast.span?.start ?? 0
     const lineIndex = buildLineIndex(source)
 
-    // Seed cache with SWC-collected imports for the current file.
+    // 先用 SWC 提供的 import 列表初始化当前文件的依赖，保证准确性与性能。
     resolvedImportCache.set(origin, resolveFromReferences(origin, helpers.imports, root))
 
     for (const reference of helpers.imports) {
@@ -31,6 +40,7 @@ export const noCircularDependencies = defineRule(
         continue
       }
 
+      // 从目标模块回溯，如果能再次回到 origin，即存在环路。
       const pathToOrigin = findPathToOrigin(target, origin, root)
       if (!pathToOrigin) {
         continue
@@ -45,6 +55,7 @@ export const noCircularDependencies = defineRule(
 
       reportedCycles.add(cycleKey)
 
+      // 统一输出相对路径，便于直接定位到仓库内文件。
       const displayChain = formatCycle(cycle, root)
       const description = messages.circularDependency({ chain: displayChain })
       const suggestions =
@@ -58,6 +69,7 @@ export const noCircularDependencies = defineRule(
               { text: 'Extract shared logic into a dedicated module to break the cycle.' },
             ]
 
+      // 优先使用 SWC 的 span 计算行号，作为高可信位置；失败时再用文本匹配兜底。
       const computedLine = reference.span
         ? resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, reference.span.start))
         : undefined
@@ -78,6 +90,7 @@ export const noCircularDependencies = defineRule(
   }
 )
 
+// 选择项目根目录：优先使用当前工作目录，找不到则向上寻找最近的 package.json。
 const resolveProjectRoot = (filePath: string): string => {
   const cwd = path.resolve(process.cwd())
   if (isWithinRoot(filePath, cwd)) {
@@ -98,11 +111,13 @@ const resolveProjectRoot = (filePath: string): string => {
   return cwd
 }
 
+// 防止解析路径逃逸到仓库外，避免跨项目误报。
 const isWithinRoot = (filePath: string, root: string): boolean => {
   const relative = path.relative(root, filePath)
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
+// 将当前文件的 import 列表解析为真实文件路径（只处理相对路径）。
 const resolveFromReferences = (
   origin: string,
   references: ReadonlyArray<{ value: string }>,
@@ -124,6 +139,8 @@ const resolveFromReferences = (
   return Array.from(resolved)
 }
 
+// DFS 搜索依赖图中是否存在一条从 start 回到 origin 的路径。
+// 通过节点数与深度上限，避免超大项目中搜索失控。
 const findPathToOrigin = (start: string, origin: string, root: string): string[] | null => {
   let nodesVisited = 0
   const visiting = new Set<string>()
@@ -170,6 +187,8 @@ const findPathToOrigin = (start: string, origin: string, root: string): string[]
   return walk(start, 0)
 }
 
+// 读取文件并通过简单正则抽取 import/require/export-from。
+// 这里不重新解析 AST，成本低但可能漏掉非常规写法。
 const getResolvedImports = (filePath: string, root: string): string[] => {
   const cached = resolvedImportCache.get(filePath)
   if (cached) {
@@ -209,6 +228,7 @@ const readFileSafe = (filePath: string): string | null => {
   }
 }
 
+// 用正则匹配常见的导入写法，覆盖 import / dynamic import / require / export-from。
 const extractImportSpecifiers = (source: string): string[] => {
   const results: string[] = []
   const patterns = [
@@ -228,6 +248,8 @@ const extractImportSpecifiers = (source: string): string[] => {
   return results
 }
 
+// 解析相对路径到真实文件：支持自动补全扩展名与目录 index。
+// 并确保解析结果在项目根目录内。
 const resolveImportFile = (fromFile: string, specifier: string, root: string): string | null => {
   if (!specifier.startsWith('.')) {
     return null
@@ -313,6 +335,7 @@ const resolveFromDirectory = (basePath: string): string | null => {
   return null
 }
 
+// 将环路规范化为稳定 key，避免同一环路从不同入口重复报错。
 const buildCycleKey = (cycle: string[]): string => {
   if (cycle.length <= 2) {
     return cycle.join('->')
@@ -332,6 +355,7 @@ const buildCycleKey = (cycle: string[]): string => {
   return best
 }
 
+// 输出尽量相对路径，便于直接定位文件。
 const formatCycle = (cycle: string[], root: string): string => {
   const formatted = cycle.map((entry) => {
     const relative = path.relative(root, entry)

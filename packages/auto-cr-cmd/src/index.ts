@@ -69,11 +69,20 @@ const consolaLoggers = {
   error: consola.error.bind(consola),
 } as const
 
+// 仅扫描 JS/TS 源码扩展名，避免把配置文件/JSON/图片等送进 SWC 解析导致报错。
 const SCANNABLE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
+// 单文件路径也走扩展名过滤，保证与目录扫描的行为一致。
 const isScannableFile = (filePath: string): boolean =>
   SCANNABLE_EXTENSIONS.some((extension) => filePath.endsWith(extension))
 
+/**
+ * CLI 主流程：
+ * 1. 校验输入路径并应用 ignore；
+ * 2. 展开目录为可扫描文件列表；
+ * 3. 加载规则 + 规则配置；
+ * 4. 逐文件扫描并汇总输出。
+ */
 async function run(
   filePaths: string[] = [],
   ruleDir: string | undefined,
@@ -141,10 +150,12 @@ async function run(
       }
     }
 
+    // ignore 配置只影响收集阶段，避免无关文件被解析或影响统计。
     const ignoreConfig = loadIgnoreConfig(ignorePath)
     ignoreConfig.warnings.forEach((warning) => log('warn', warning))
     const isIgnored = createIgnoreMatcher(ignoreConfig.patterns, ignoreConfig.baseDir)
 
+    // 先展开路径，再进行二次过滤，保证 ignore 与扩展名筛选一致生效。
     let allFiles: string[] = []
 
     for (const targetPath of validPaths) {
@@ -178,6 +189,7 @@ async function run(
       }
     }
 
+    // 跳过声明文件与被 ignore 的路径，确保仅扫描真正的业务源码。
     const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts') && !isIgnored(candidate))
     const customRules = loadCustomRules(ruleDir)
     const rcConfig = loadAutoCrRc(configPath)
@@ -266,6 +278,13 @@ interface AnalyzeFileSummary {
   violations: ReadonlyArray<ViolationRecord>
 }
 
+/**
+ * 单文件扫描流程：
+ * - 读取源码并解析 AST；
+ * - 基于语言/源码构建规则上下文；
+ * - 逐条执行规则，收集 reporter 输出；
+ * - 汇总为文件级统计。
+ */
 async function analyzeFile(
   file: string,
   rules: Rule[],
