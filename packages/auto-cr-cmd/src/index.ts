@@ -69,6 +69,11 @@ const consolaLoggers = {
   error: consola.error.bind(consola),
 } as const
 
+const SCANNABLE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
+
+const isScannableFile = (filePath: string): boolean =>
+  SCANNABLE_EXTENSIONS.some((extension) => filePath.endsWith(extension))
+
 async function run(
   filePaths: string[] = [],
   ruleDir: string | undefined,
@@ -149,11 +154,11 @@ async function run(
 
       const stat = fs.statSync(targetPath)
       if (stat.isFile()) {
-        if (!isIgnored(targetPath)) {
+        if (!isIgnored(targetPath) && isScannableFile(targetPath)) {
           allFiles.push(targetPath)
         }
       } else if (stat.isDirectory()) {
-        const directoryFiles = getAllFiles(targetPath, [], ['.ts', '.tsx', '.js', '.jsx'], {
+        const directoryFiles = getAllFiles(targetPath, [], SCANNABLE_EXTENSIONS, {
           shouldIgnore: (fullPath) => isIgnored(fullPath),
         })
         allFiles = [...allFiles, ...directoryFiles]
