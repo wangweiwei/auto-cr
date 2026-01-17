@@ -48,6 +48,7 @@ export interface ImportReference {
 export interface RuleMessages {
   noDeepRelativeImports(params: { value: string; maxDepth: number }): string
   swallowedError(): string
+  circularDependency(params: { chain: string }): string
 }
 
 export interface RuleHelpers {
