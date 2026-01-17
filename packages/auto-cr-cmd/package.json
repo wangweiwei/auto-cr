@@ -46,7 +46,7 @@
   "sideEffects": false,
   "dependencies": {
     "@swc/core": "^1.15.5",
-    "@swc/wasm": "^1.14.0",
+    "@swc/wasm": "^1.15.8",
     "auto-cr-rules": "^2.0.63",
     "commander": "^14.0.2",
     "consola": "^3.4.2",
