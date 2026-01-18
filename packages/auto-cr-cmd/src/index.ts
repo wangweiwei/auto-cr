@@ -140,18 +140,17 @@ async function run(
   const notifications: Notification[] = []
   // 进度渲染说明：
   // - 仅 text 模式显示，JSON 输出用于脚本解析需保持稳定。
-  // - 默认走 stdout，可通过 --progress stderr 切换到 stderr。
-  // - pnpm 可能在非 TTY 环境运行，允许 --progress 强制开启。
+  // - 进度默认写入 stderr。
+  // - --progress tty-only/yes/no 控制显示：tty-only 仅 TTY，yes 强制，no 关闭。
   // - “固定模式”会用 ANSI 保存/恢复光标，把进度绘制在固定行。
-  // - 非 TTY 时补换行，避免输出被缓冲看不到更新。
-  const progressStream = progressOption?.stream === 'stderr' ? process.stderr : process.stdout
-  const runningUnderPnpm = /pnpm\//.test(process.env.npm_config_user_agent ?? '')
-  const forceProgress = Boolean(progressOption?.force)
+  // - 非 TTY 强制显示时只追加行，避免输出控制序列污染日志。
+  const progressMode = progressOption?.mode ?? 'tty-only'
+  const progressStream = process.stderr
   const progressStreamHasTty = Boolean(progressStream.isTTY)
-  const progressEnabled = format === 'text' && (forceProgress || progressStreamHasTty || runningUnderPnpm)
+  const progressEnabled =
+    format === 'text' && progressMode !== 'no' && (progressMode === 'yes' || progressStreamHasTty)
   // “固定模式”会让进度行保持在固定位置，避免被其它日志覆盖。
-  const progressPinned = progressEnabled
-  const progressFlushLine = progressEnabled && !progressStreamHasTty
+  const progressPinned = progressEnabled && progressStreamHasTty
   // 仅在 TTY 下启用 ANSI 样式，避免输出乱码。
   const progressStyle =
     progressStreamHasTty
@@ -172,7 +171,7 @@ async function run(
       progressStream.write('\x1b[1;1H')
       progressStream.write('\x1b[2K')
       progressStream.write('\x1b8')
-    } else {
+    } else if (progressStreamHasTty) {
       progressStream.write('\r\x1b[2K')
     }
   }
@@ -200,11 +199,8 @@ async function run(
         progressStream.write('\x1b[K')
         progressStream.write(progressStyle.reset)
       }
-      if (progressFlushLine) {
-        progressStream.write('\n')
-      }
       progressStream.write('\x1b8')
-    } else {
+    } else if (progressStreamHasTty) {
       progressStream.write(`\r${styledMessage}`)
       if (progressStyle.prefix) {
         progressStream.write('\x1b[K')
@@ -212,6 +208,8 @@ async function run(
       } else {
         progressStream.write('\x1b[K')
       }
+    } else {
+      progressStream.write(`${styledMessage}\n`)
     }
   }
 
@@ -670,32 +668,31 @@ function parseOutputFormat(value?: string): OutputFormat {
   throw new Error(`Unsupported output format: ${value}. Use "text" or "json".`)
 }
 
-type ProgressStream = 'stdout' | 'stderr'
-
 interface ProgressOption {
-  force: boolean
-  stream: ProgressStream
+  mode: ProgressMode
 }
 
-function parseProgressOption(value?: boolean | string): ProgressOption | undefined {
-  if (!value) {
-    return undefined
+type ProgressMode = 'tty-only' | 'yes' | 'no'
+
+function parseProgressOption(value?: boolean | string): ProgressOption {
+  if (value === undefined) {
+    return { mode: 'tty-only' }
   }
 
   if (value === true) {
-    return { force: true, stream: 'stdout' }
+    return { mode: 'yes' }
   }
 
   if (typeof value === 'string') {
     const normalized = value.toLowerCase()
-    if (normalized === 'stdout' || normalized === 'stderr') {
-      return { force: true, stream: normalized as ProgressStream }
+    if (normalized === 'tty-only' || normalized === 'yes' || normalized === 'no') {
+      return { mode: normalized as ProgressMode }
     }
 
-    throw new Error(`Unsupported progress output: ${value}. Use "stdout" or "stderr".`)
+    throw new Error(`Unsupported progress mode: ${value}. Use "tty-only", "yes", or "no".`)
   }
 
-  return undefined
+  return { mode: 'tty-only' }
 }
 
 type JsonSeverity = 'error' | 'warning' | 'optimizing'
@@ -800,7 +797,10 @@ program
   .option('-c, --config <path>', '配置文件路径 (.autocrrc.json|.autocrrc.js) / Config file path (.autocrrc.json|.autocrrc.js)')
   .option('--ignore-path <path>', '忽略文件列表路径 (.autocrignore.json|.autocrignore.js) / Ignore file path (.autocrignore.json|.autocrignore.js)')
   .option('--tsconfig <path>', '自定义 tsconfig 路径 / Custom tsconfig path')
-  .option('--progress [stream]', '强制显示扫描进度，可选 stdout/stderr / Force showing scan progress (stdout/stderr)')
+  .option(
+    '--progress [mode]',
+    '进度显示模式 tty-only/yes/no（默认 tty-only，输出到 stderr） / Progress mode tty-only/yes/no (default tty-only, outputs to stderr)'
+  )
   .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
   .parse(process.argv.filter((arg) => arg !== '--'))
 
