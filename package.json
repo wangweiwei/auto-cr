@@ -15,5 +15,10 @@
   "packageManager": "pnpm@10.15.1",
   "dependencies": {
     "auto-cr-rules": "^2.0.30"
+  },
+  "pnpm": {
+    "overrides": {
+      "diff": "^8.0.3"
+    }
   }
 }
