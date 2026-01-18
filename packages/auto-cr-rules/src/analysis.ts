@@ -227,7 +227,8 @@ const walkFunctionBody = (
 ): void => {
   // 先遍历参数/装饰器等非 body 字段，保持 inHot=false，避免把定义期表达式算进热路径。
   // 例如：默认参数表达式不应被当作热路径执行。
-  const record = fn as Record<string, unknown>
+  // TypeScript 对 AST 节点没有索引签名，这里先转为 unknown 再转 Record。
+  const record = fn as unknown as Record<string, unknown>
   for (const [key, value] of Object.entries(record)) {
     if (key === 'body') {
       continue

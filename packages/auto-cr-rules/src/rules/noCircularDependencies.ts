@@ -735,7 +735,7 @@ const getWorkspacePackages = (root: string): Map<string, WorkspacePackage> => {
 
   const packages = new Map<string, WorkspacePackage>()
 
-  for (const dir of packageDirs) {
+  packageDirs.forEach((dir) => {
     try {
       const raw = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')
       const pkg = JSON.parse(raw) as PackageJsonShape
@@ -743,9 +743,9 @@ const getWorkspacePackages = (root: string): Map<string, WorkspacePackage> => {
         packages.set(pkg.name, { name: pkg.name, dir, packageJson: pkg })
       }
     } catch {
-      continue
+      return
     }
-  }
+  })
 
   workspacePackageCache.set(root, packages)
   return packages

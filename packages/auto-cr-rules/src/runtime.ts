@@ -3,6 +3,7 @@ import { analyzeModule } from './analysis'
 import { createRuleMessages } from './messages'
 import { createSourceIndex } from './sourceIndex'
 import type {
+  ImportReference,
   Language,
   RuleAnalysis,
   RuleContext,
@@ -49,7 +50,7 @@ export const createRuleContext = ({
 }
 
 // 规则 helper：统一封装路径判断、相对深度与违规上报逻辑。
-const createRuleHelpers = (reporter: RuleReporter, imports: ReturnType<typeof collectImportReferences>): RuleHelpers => {
+const createRuleHelpers = (reporter: RuleReporter, imports: ReadonlyArray<ImportReference>): RuleHelpers => {
   const isRelativePath = (value: string): boolean => value.startsWith('.')
 
   const relativeDepth = (value: string): number => {
