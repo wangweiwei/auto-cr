@@ -88,10 +88,130 @@ async function run(
   ruleDir: string | undefined,
   format: OutputFormat,
   configPath?: string,
-  ignorePath?: string
+  ignorePath?: string,
+  progressOption?: ProgressOption
 ): Promise<ScanSummary> {
   const t = getTranslator()
   const notifications: Notification[] = []
+  // 进度渲染说明：
+  // - 仅 text 模式显示，JSON 输出用于脚本解析需保持稳定。
+  // - 默认走 stdout，可通过 --progress stderr 切换到 stderr。
+  // - pnpm 可能在非 TTY 环境运行，允许 --progress 强制开启。
+  // - “固定模式”会用 ANSI 保存/恢复光标，把进度绘制在固定行。
+  // - 非 TTY 时补换行，避免输出被缓冲看不到更新。
+  const progressStream = progressOption?.stream === 'stderr' ? process.stderr : process.stdout
+  const runningUnderPnpm = /pnpm\//.test(process.env.npm_config_user_agent ?? '')
+  const forceProgress = Boolean(progressOption?.force)
+  const progressStreamHasTty = Boolean(progressStream.isTTY)
+  const progressEnabled = format === 'text' && (forceProgress || progressStreamHasTty || runningUnderPnpm)
+  // “固定模式”会让进度行保持在固定位置，避免被其它日志覆盖。
+  const progressPinned = progressEnabled
+  const progressFlushLine = progressEnabled && !progressStreamHasTty
+  // 仅在 TTY 下启用 ANSI 样式，避免输出乱码。
+  const progressStyle =
+    progressStreamHasTty
+      ? { prefix: '\x1b[44m\x1b[97m', reset: '\x1b[0m' }
+      : { prefix: '', reset: '' }
+  let progressTotal = 0
+  let progressCurrent = 0
+  let progressLastPercent = -1
+
+  // 清理进度行，避免残留在终端里。
+  const clearProgressLine = () => {
+    if (!progressEnabled) {
+      return
+    }
+
+    if (progressPinned) {
+      progressStream.write('\x1b7')
+      progressStream.write('\x1b[1;1H')
+      progressStream.write('\x1b[2K')
+      progressStream.write('\x1b8')
+    } else {
+      progressStream.write('\r\x1b[2K')
+    }
+  }
+
+  // 百分比变化时渲染（或强制渲染），用单行覆盖避免刷屏。
+  const renderProgress = (force = false) => {
+    if (!progressEnabled || progressTotal === 0) {
+      return
+    }
+
+    const percent = Math.min(100, Math.floor((progressCurrent / progressTotal) * 100))
+    if (!force && percent === progressLastPercent) {
+      return
+    }
+
+    progressLastPercent = percent
+    const message = t.scanProgress({ percent, current: progressCurrent, total: progressTotal })
+    const styledMessage = progressStyle.prefix ? `${progressStyle.prefix}${message}` : message
+    if (progressPinned) {
+      progressStream.write('\x1b7')
+      progressStream.write('\x1b[1;1H')
+      progressStream.write('\x1b[2K')
+      progressStream.write(styledMessage)
+      if (progressStyle.prefix) {
+        progressStream.write('\x1b[K')
+        progressStream.write(progressStyle.reset)
+      }
+      if (progressFlushLine) {
+        progressStream.write('\n')
+      }
+      progressStream.write('\x1b8')
+    } else {
+      progressStream.write(`\r${styledMessage}`)
+      if (progressStyle.prefix) {
+        progressStream.write('\x1b[K')
+        progressStream.write(progressStyle.reset)
+      } else {
+        progressStream.write('\x1b[K')
+      }
+    }
+  }
+
+  // 扫描开始前初始化计数。
+  const startProgress = (total: number) => {
+    if (!progressEnabled) {
+      return
+    }
+
+    progressTotal = total
+    progressCurrent = 0
+    progressLastPercent = -1
+    renderProgress(true)
+  }
+
+  // 每扫描一个文件就推进一次，必要时刷新进度。
+  const advanceProgress = () => {
+    if (!progressEnabled || progressTotal === 0) {
+      return
+    }
+
+    progressCurrent = Math.min(progressCurrent + 1, progressTotal)
+    renderProgress()
+  }
+
+  // 扫描结束：渲染 100%，再清掉进度行。
+  const finishProgress = () => {
+    if (!progressEnabled) {
+      return
+    }
+
+    if (progressTotal > 0) {
+      progressCurrent = progressTotal
+      progressLastPercent = -1
+      renderProgress()
+      clearProgressLine()
+    }
+    progressTotal = 0
+    progressCurrent = 0
+    progressLastPercent = -1
+  }
+
+  const reporterHooks: ReporterHooks = {
+    onAfterReport: () => renderProgress(true),
+  }
 
   const log: Logger = (level, message, detail) => {
     let detailText: string | undefined
@@ -119,6 +239,7 @@ async function run(
       } else {
         logger(message, detail)
       }
+      renderProgress(true)
     }
   }
 
@@ -223,8 +344,10 @@ async function run(
 
     const fileSummaries: FileScanResult[] = []
 
+    startProgress(scannableFiles.length)
+
     for (const file of scannableFiles) {
-      const summary = await analyzeFile(file, rules, format, log)
+      const summary = await analyzeFile(file, rules, format, log, reporterHooks)
 
       if (summary.severityCounts.error > 0) {
         filesWithErrors += 1
@@ -250,7 +373,11 @@ async function run(
         errorViolations: summary.errorViolations,
         violations: summary.violations,
       })
+
+      advanceProgress()
     }
+
+    finishProgress()
 
     return {
       scannedFiles: scannableFiles.length,
@@ -278,6 +405,11 @@ interface AnalyzeFileSummary {
   violations: ReadonlyArray<ViolationRecord>
 }
 
+interface ReporterHooks {
+  onBeforeReport?: () => void
+  onAfterReport?: () => void
+}
+
 /**
  * 单文件扫描流程：
  * - 读取源码并解析 AST；
@@ -289,10 +421,11 @@ async function analyzeFile(
   file: string,
   rules: Rule[],
   format: OutputFormat,
-  log: Logger
+  log: Logger,
+  reporterHooks?: ReporterHooks
 ): Promise<AnalyzeFileSummary> {
   const source = readFile(file)
-  const reporter = createReporter(file, source, { format })
+  const reporter = createReporter(file, source, { format, ...reporterHooks })
   const t = getTranslator()
 
   let ast
@@ -492,6 +625,34 @@ function parseOutputFormat(value?: string): OutputFormat {
   throw new Error(`Unsupported output format: ${value}. Use "text" or "json".`)
 }
 
+type ProgressStream = 'stdout' | 'stderr'
+
+interface ProgressOption {
+  force: boolean
+  stream: ProgressStream
+}
+
+function parseProgressOption(value?: boolean | string): ProgressOption | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  if (value === true) {
+    return { force: true, stream: 'stdout' }
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase()
+    if (normalized === 'stdout' || normalized === 'stderr') {
+      return { force: true, stream: normalized as ProgressStream }
+    }
+
+    throw new Error(`Unsupported progress output: ${value}. Use "stdout" or "stderr".`)
+  }
+
+  return undefined
+}
+
 type JsonSeverity = 'error' | 'warning' | 'optimizing'
 
 interface JsonSuggestion {
@@ -594,8 +755,9 @@ program
   .option('-c, --config <path>', '配置文件路径 (.autocrrc.json|.autocrrc.js) / Config file path (.autocrrc.json|.autocrrc.js)')
   .option('--ignore-path <path>', '忽略文件列表路径 (.autocrignore.json|.autocrignore.js) / Ignore file path (.autocrignore.json|.autocrignore.js)')
   .option('--tsconfig <path>', '自定义 tsconfig 路径 / Custom tsconfig path')
+  .option('--progress [stream]', '强制显示扫描进度，可选 stdout/stderr / Force showing scan progress (stdout/stderr)')
   .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
-  .parse(process.argv)
+  .parse(process.argv.filter((arg) => arg !== '--'))
 
 const options = program.opts<{
   ruleDir?: string
@@ -605,6 +767,7 @@ const options = program.opts<{
   config?: string
   ignorePath?: string
   tsconfig?: string
+  progress?: boolean | string
 }>()
 const cliArguments = program.args as string[]
 
@@ -612,9 +775,18 @@ setLanguage(options.language ?? process.env.LANG)
 setTsConfigPath(options.tsconfig ? path.resolve(process.cwd(), options.tsconfig) : undefined)
 
 let outputFormat: OutputFormat
+let progressOption: ProgressOption | undefined
 
 try {
   outputFormat = parseOutputFormat(options.output)
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  consola.error(message)
+  process.exit(1)
+}
+
+try {
+  progressOption = parseProgressOption(options.progress)
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error)
   consola.error(message)
@@ -626,7 +798,7 @@ try {
     const stdinTargets = await readPathsFromStdin(Boolean(options.stdin))
     const combinedTargets = [...cliArguments, ...stdinTargets]
     const filePaths = combinedTargets.map((target) => path.resolve(process.cwd(), target))
-    const result = await run(filePaths, options.ruleDir, outputFormat, options.config, options.ignorePath)
+    const result = await run(filePaths, options.ruleDir, outputFormat, options.config, options.ignorePath, progressOption)
     const t = getTranslator()
 
     if (outputFormat === 'json') {

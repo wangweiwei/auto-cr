@@ -7,6 +7,7 @@ interface Translator {
   noFilesFound(): string
   noRulesLoaded(): string
   scanningFile(params: { file: string }): string
+  scanProgress(params: { percent: number; current: number; total: number }): string
   scanComplete(): string
   scanError(): string
   parseFileFailed(params: { file: string }): string
@@ -45,6 +46,7 @@ const translations = {
     noFilesFound: () => '未找到需要扫描的文件',
     noRulesLoaded: () => '未加载任何规则，跳过扫描',
     scanningFile: ({ file }) => `扫描文件: ${file}`,
+    scanProgress: ({ percent, current, total }) => `auto-cr-cmd 扫描进度: ${percent}% (${current}/${total})`,
     scanComplete: () => '代码扫描完成',
     scanError: () => '代码扫描过程中发生错误:',
     parseFileFailed: ({ file }) => `解析文件失败: ${file}`,
@@ -110,6 +112,7 @@ const translations = {
     noFilesFound: () => 'No files found to scan',
     noRulesLoaded: () => 'No rules loaded; skipping scan',
     scanningFile: ({ file }) => `Scanning file: ${file}`,
+    scanProgress: ({ percent, current, total }) => `auto-cr-cmd scan progress: ${percent}% (${current}/${total})`,
     scanComplete: () => 'Code scan complete',
     scanError: () => 'An error occurred during code scanning:',
     parseFileFailed: ({ file }) => `Failed to parse file: ${file}`,

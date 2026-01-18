@@ -9,6 +9,8 @@ export type ReporterFormat = 'text' | 'json'
 
 interface ReporterOptions {
   format?: ReporterFormat
+  onBeforeReport?: () => void
+  onAfterReport?: () => void
 }
 
 // Reporter 除了复用 RuleReporter 方法外，还提供按规则隔离的 reporter 与最终汇总能力。
@@ -82,6 +84,8 @@ export function createReporter(
   const language = getLanguage()
   const records: ViolationRecord[] = []
   const format = options.format ?? DEFAULT_FORMAT
+  const onBeforeReport = options.onBeforeReport
+  const onAfterReport = options.onAfterReport
 
   // 累计单文件的违规统计，便于输出文件级 summary。
   let totalViolations = 0
@@ -218,6 +222,7 @@ export function createReporter(
     }
 
     if (violationSnapshot.length > 0 && format === 'text') {
+      onBeforeReport?.()
       const locale = language === 'zh' ? 'zh-CN' : 'en-US'
       const formatter = new Intl.DateTimeFormat(locale, {
         hour: '2-digit',
@@ -255,6 +260,7 @@ export function createReporter(
           consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
         }
       })
+      onAfterReport?.()
     }
 
     records.length = 0
