@@ -280,6 +280,10 @@ export function renderViolations(
   const colon = language === 'zh' ? '：' : ':'
   const headerGap = language === 'zh' ? '' : ' '
 
+  const writeLine = (stream: NodeJS.WriteStream, line: string): void => {
+    stream.write(`${line}\n`)
+  }
+
   options.onBeforeReport?.()
   violations.forEach((violation) => {
     const timestamp = formatter.format(new Date())
@@ -289,12 +293,17 @@ export function renderViolations(
     const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
     logger(header)
 
+    // 让 header 与详情走同一输出流，避免 stdout/stderr 混排导致顺序错乱。
+    const detailStream =
+      violation.severity === RuleSeverity.Error || violation.severity === RuleSeverity.Warning
+        ? process.stderr
+        : process.stdout
     const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
-    consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
-    consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
+    writeLine(detailStream, `${indent}${t.reporterFileLabel()}: ${location}`)
+    writeLine(detailStream, `${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
 
     if (violation.code) {
-      consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
+      writeLine(detailStream, `${indent}${t.reporterCodeLabel()}: ${violation.code}`)
     }
 
     if (violation.suggestions && violation.suggestions.length > 0) {
@@ -303,7 +312,7 @@ export function renderViolations(
         .map((suggestion) => t.reporterFormatSuggestion(suggestion))
         .join(suggestionSeparator)
 
-      consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
+      writeLine(detailStream, `${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
     }
   })
   options.onAfterReport?.()
