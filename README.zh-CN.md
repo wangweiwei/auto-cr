@@ -43,6 +43,7 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 - `--language <zh|en>`：切换 CLI 输出语言（默认为自动检测）。
 - `--rule-dir <directory>`：加载额外的自定义规则目录或包。
 - `--output <text|json>`：选择输出格式，`text` 为友好的终端日志，`json` 用于集成脚本（默认为 `text`）。
+- `--progress [stdout|stderr]`：强制显示扫描进度（仅 text 输出），可选输出到 stdout/stderr，使用 stderr 可避免影响 stdout 管道。
 - `--config <path>`：指定 `.autocrrc.json` 或 `.autocrrc.js` 配置文件路径，用于开启/关闭规则。
 - `--ignore-path <path>`：指定 `.autocrignore.json` 或 `.autocrignore.js` 忽略文件路径，用于排除扫描。
 - `--tsconfig <path>`：指定自定义 `tsconfig.json` 路径（默认读取 `<cwd>/tsconfig.json`）。
