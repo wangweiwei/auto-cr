@@ -52,6 +52,7 @@ export interface RuleMessages {
   noDeepRelativeImports(params: { value: string; maxDepth: number }): string
   swallowedError(): string
   circularDependency(params: { chain: string }): string
+  unresolvedImport(params: { value: string }): string
   noCatastrophicRegex(params: { pattern: string }): string
   noDeepCloneInLoop(): string
   noN2ArrayLookup(params: { method: string }): string
