@@ -1,25 +1,24 @@
 #!/usr/bin/env node
 import { consola } from 'consola'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { program } from 'commander'
-import { parseSync } from '@swc/wasm'
-import { loadParseOptions, setTsConfigPath } from './config'
-import { createReporter, type ReporterFormat, type ViolationRecord } from './report'
+import { setTsConfigPath } from './config'
+import { renderViolations, type ReporterFormat, type ViolationRecord } from './report'
 import { getLanguage, getTranslator, setLanguage } from './i18n'
-import { readFile, getAllFiles, checkPathExists } from './utils/file'
+import { getAllFiles, checkPathExists } from './utils/file'
 import { readPathsFromStdin } from './utils/stdin'
 import type { RuleSeverity as RuleSeverityType } from 'auto-cr-rules'
+import { analyzeFile, type ReporterHooks } from './scan/analyzeFile'
+import type { AnalyzeFileSummary, FileSeveritySummary, Logger, Notification, NotificationLevel } from './scan/types'
+import { loadRulesRuntime } from './scan/runtime'
+import { runWorkerPool } from './scan/workerPool'
+import type { WorkerInitData } from './scan/workerTypes'
 import { loadCustomRules } from './rules/loader'
 import { applyRuleConfig, loadAutoCrRc } from './config/autocrrc'
 import { createIgnoreMatcher, loadIgnoreConfig } from './config/ignore'
-import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
-
-type RulesRuntime = {
-  builtinRules: Rule[]
-  createRuleContext: typeof import('auto-cr-rules').createRuleContext
-  RuleSeverity: typeof import('auto-cr-rules').RuleSeverity
-}
+import type { Rule } from 'auto-cr-rules'
 
 consola.options.formatOptions = {
   ...consola.options.formatOptions,
@@ -41,12 +40,6 @@ interface ScanSummary {
   notifications: Notification[]
 }
 
-interface FileSeveritySummary {
-  error: number
-  warning: number
-  optimizing: number
-}
-
 interface FileScanResult {
   filePath: string
   severityCounts: FileSeveritySummary
@@ -56,18 +49,6 @@ interface FileScanResult {
 }
 
 type OutputFormat = ReporterFormat
-
-type NotificationLevel = 'info' | 'warn' | 'error'
-
-interface Notification {
-  level: NotificationLevel
-  message: string
-  detail?: string
-}
-
-type Logger = (level: NotificationLevel, message: string, detail?: unknown) => void
-
-type ReporterSpanArg = Parameters<RuleReporter['errorAtSpan']>[0]
 
 const consolaLoggers = {
   info: consola.info.bind(consola),
@@ -88,37 +69,30 @@ const RuleSeverity = rulesRuntime.RuleSeverity
 const isScannableFile = (filePath: string): boolean =>
   SCANNABLE_EXTENSIONS.some((extension) => filePath.endsWith(extension))
 
-function loadRulesRuntime(): RulesRuntime {
-  const fallback = require('auto-cr-rules') as RulesRuntime
-  const localRuntime = resolveLocalRulesRuntime()
+// 小文件集无需并行，避免 worker 初始化开销大于收益。
+const MIN_FILES_FOR_WORKERS = 20
 
-  if (localRuntime) {
-    return localRuntime
-  }
-
-  return fallback
-}
-
-function resolveLocalRulesRuntime(): RulesRuntime | null {
-  if (!__filename.endsWith('.ts')) {
-    return null
-  }
-
-  const localEntry = path.resolve(__dirname, '../../auto-cr-rules/src/index.ts')
-  if (!fs.existsSync(localEntry)) {
-    return null
-  }
-
-  try {
-    const localRuntime = require(localEntry) as RulesRuntime
-    if (Array.isArray(localRuntime.builtinRules)) {
-      return localRuntime
+const resolveWorkerCount = (totalFiles: number): number => {
+  // 支持环境变量覆盖并发数：
+  // - AUTO_CR_WORKERS=0 表示强制单线程；
+  // - AUTO_CR_WORKERS=1 表示不启用并行；
+  // - >1 则按指定数量启用 worker。
+  const override = process.env.AUTO_CR_WORKERS
+  if (override) {
+    const parsed = Number(override)
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      return Math.min(totalFiles, Math.floor(parsed))
     }
-  } catch {
-    return null
   }
 
-  return null
+  if (totalFiles < MIN_FILES_FOR_WORKERS) {
+    return 1
+  }
+
+  // 默认按 CPU 数量 - 1 取值，给主线程留出空间。
+  const cpuCount = os.cpus().length || 1
+  const maxWorkers = Math.max(1, cpuCount - 1)
+  return Math.min(maxWorkers, totalFiles)
 }
 
 /**
@@ -256,7 +230,9 @@ async function run(
     onAfterReport: () => renderProgress(true),
   }
 
-  const log: Logger = (level, message, detail) => {
+  // 统一把日志转换为 Notification，便于缓存/worker 结果回放。
+  // detail 统一转成字符串，保证可序列化。
+  const createNotification = (level: NotificationLevel, message: string, detail?: unknown): Notification => {
     let detailText: string | undefined
 
     if (detail !== undefined) {
@@ -273,17 +249,25 @@ async function run(
       }
     }
 
-    notifications.push({ level, message, detail: detailText })
+    return { level, message, detail: detailText }
+  }
 
+  // 统一日志落库 + 可选输出（text 模式），输出后刷新进度行防止覆盖。
+  const logRecord = (record: Notification): void => {
+    notifications.push(record)
     if (format === 'text') {
-      const logger = consolaLoggers[level]
-      if (detail === undefined) {
-        logger(message)
+      const logger = consolaLoggers[record.level]
+      if (record.detail === undefined) {
+        logger(record.message)
       } else {
-        logger(message, detail)
+        logger(record.message, record.detail)
       }
       renderProgress(true)
     }
+  }
+
+  const log: Logger = (level, message, detail) => {
+    logRecord(createNotification(level, message, detail))
   }
 
   try {
@@ -355,7 +339,9 @@ async function run(
 
     // 跳过声明文件与被 ignore 的路径，确保仅扫描真正的业务源码。
     const scannableFiles = allFiles.filter((candidate) => !candidate.endsWith('.d.ts') && !isIgnored(candidate))
-    const customRules = loadCustomRules(ruleDir)
+    const customRules = loadCustomRules(ruleDir, {
+      onWarning: (message, detail) => log('warn', message, detail),
+    })
     const rcConfig = loadAutoCrRc(configPath)
 
     rcConfig.warnings.forEach((warning) => log('warn', warning))
@@ -386,12 +372,12 @@ async function run(
     let totalOptimizingViolations = 0
 
     const fileSummaries: FileScanResult[] = []
+    // analyzeFile 内部 reporter 不输出，统一由主流程渲染，便于并发/缓存复用。
+    const analysisFormat: ReporterFormat = 'json'
+    const workerCount = resolveWorkerCount(scannableFiles.length)
 
-    startProgress(scannableFiles.length)
-
-    for (const file of scannableFiles) {
-      const summary = await analyzeFile(file, rules, format, log, reporterHooks)
-
+    // 汇总单文件统计，保持统计逻辑集中，避免并发/缓存分支重复实现。
+    const applyFileSummary = (filePath: string, summary: AnalyzeFileSummary): void => {
       if (summary.severityCounts.error > 0) {
         filesWithErrors += 1
       }
@@ -410,14 +396,112 @@ async function run(
       totalOptimizingViolations += summary.severityCounts.optimizing
 
       fileSummaries.push({
-        filePath: file,
+        filePath,
         severityCounts: summary.severityCounts,
         totalViolations: summary.totalViolations,
         errorViolations: summary.errorViolations,
         violations: summary.violations,
       })
+    }
 
-      advanceProgress()
+    startProgress(scannableFiles.length)
+
+    if (workerCount > 1) {
+      // 并行模式：
+      // - 只把去重后的文件发给 worker；
+      // - 通过索引映射保持输出顺序稳定；
+      // - 日志与 violations 统一在主线程渲染。
+      const fileOccurrences = new Map<string, number[]>()
+      scannableFiles.forEach((filePath, index) => {
+        const bucket = fileOccurrences.get(filePath) ?? []
+        bucket.push(index)
+        fileOccurrences.set(filePath, bucket)
+      })
+
+      const uniqueFiles = Array.from(fileOccurrences.keys())
+      // pendingResults 按扫描序号暂存，确保输出顺序与输入一致。
+      const pendingResults = new Map<number, { summary: AnalyzeFileSummary; logs: Notification[] }>()
+      let nextOutputIndex = 0
+
+      // 只要前序结果已齐，就持续输出；避免乱序打印。
+      const flushReadyResults = (): void => {
+        while (pendingResults.has(nextOutputIndex)) {
+          const entry = pendingResults.get(nextOutputIndex)
+          if (!entry) {
+            break
+          }
+          pendingResults.delete(nextOutputIndex)
+
+          const filePath = scannableFiles[nextOutputIndex]
+          // 先回放日志，再回放违规输出，确保日志顺序与单线程一致。
+          entry.logs.forEach((record) => logRecord(record))
+
+          if (format === 'text') {
+            renderViolations(filePath, entry.summary.violations, { format, ...reporterHooks })
+          }
+
+          applyFileSummary(filePath, entry.summary)
+          nextOutputIndex += 1
+        }
+      }
+
+      // worker 初始化数据：确保语言/tsconfig/规则配置一致。
+      const initData: WorkerInitData = {
+        ruleDir,
+        ruleSettings: rcConfig.rules,
+        language: getLanguage(),
+        tsconfigPath: resolvedTsconfigPath,
+      }
+
+      await runWorkerPool({
+        files: uniqueFiles,
+        workerCount,
+        initData,
+        onResult: ({ filePath, summary, logs }) => {
+          const occurrences = fileOccurrences.get(filePath) ?? []
+          for (const index of occurrences) {
+            pendingResults.set(index, { summary, logs })
+            // 进度按“原始文件列表”推进，保持百分比与实际扫描一致。
+            advanceProgress()
+          }
+          flushReadyResults()
+        },
+      })
+
+      flushReadyResults()
+    } else {
+      // 单线程模式下也做跨文件缓存：相同路径只解析一次。
+      const fileSummaryCache = new Map<string, { summary: AnalyzeFileSummary; logs: Notification[] }>()
+
+      for (const file of scannableFiles) {
+        const cached = fileSummaryCache.get(file)
+        let summary: AnalyzeFileSummary
+        let logs: Notification[] = []
+
+        if (cached) {
+          summary = cached.summary
+          logs = cached.logs
+          logs.forEach((record) => logRecord(record))
+        } else {
+          const capturedLogs: Notification[] = []
+          // 先把日志收集到缓存里，便于后续复用时保持一致输出。
+          const logForFile: Logger = (level, message, detail) => {
+            const record = createNotification(level, message, detail)
+            capturedLogs.push(record)
+            logRecord(record)
+          }
+
+          summary = await analyzeFile(file, rules, analysisFormat, logForFile, createRuleContext)
+          fileSummaryCache.set(file, { summary, logs: capturedLogs })
+        }
+
+        if (format === 'text') {
+          renderViolations(file, summary.violations, { format, ...reporterHooks })
+        }
+
+        applyFileSummary(file, summary)
+        advanceProgress()
+      }
     }
 
     finishProgress()
@@ -438,218 +522,6 @@ async function run(
     }
   } catch (error) {
     throw error instanceof Error ? error : new Error(String(error))
-  }
-}
-
-interface AnalyzeFileSummary {
-  severityCounts: FileSeveritySummary
-  totalViolations: number
-  errorViolations: number
-  violations: ReadonlyArray<ViolationRecord>
-}
-
-interface ReporterHooks {
-  onBeforeReport?: () => void
-  onAfterReport?: () => void
-}
-
-/**
- * 单文件扫描流程：
- * - 读取源码并解析 AST；
- * - 基于语言/源码构建规则上下文；
- * - 逐条执行规则，收集 reporter 输出；
- * - 汇总为文件级统计。
- */
-async function analyzeFile(
-  file: string,
-  rules: Rule[],
-  format: OutputFormat,
-  log: Logger,
-  reporterHooks?: ReporterHooks
-): Promise<AnalyzeFileSummary> {
-  const source = readFile(file)
-  const reporter = createReporter(file, source, { format, ...reporterHooks })
-  const t = getTranslator()
-
-  let ast
-
-  try {
-    const parseOptions = loadParseOptions(file)
-    ast = parseSync(source, parseOptions as unknown as Parameters<typeof parseSync>[1])
-  } catch (error) {
-    log('error', t.parseFileFailed({ file }), error)
-    return {
-      severityCounts: {
-        error: 1,
-        warning: 0,
-        optimizing: 0,
-      },
-      totalViolations: 1,
-      errorViolations: 1,
-      violations: [],
-    }
-  }
-
-  const language = getLanguage()
-  const baseContext = createRuleContext({
-    ast,
-    filePath: file,
-    source,
-    reporter,
-    language,
-  })
-
-  const sharedHelpers = baseContext.helpers
-
-  for (const rule of rules) {
-    try {
-      const scopedReporter = reporter.forRule(rule)
-      const reporterWithRecord = scopedReporter as RuleReporter & {
-        record?: (record: ReporterRecordPayload) => void
-      }
-
-      const helpers: RuleContext['helpers'] = {
-        ...sharedHelpers,
-        reportViolation: ((input: unknown, span?: ReporterSpanArg): void => {
-          const normalized = normalizeViolationInput(input, span)
-
-          if (typeof reporterWithRecord.record === 'function') {
-            reporterWithRecord.record({
-              description: normalized.message,
-              code: normalized.code,
-              suggestions: normalized.suggestions,
-              span: normalized.span,
-              line: normalized.line,
-            })
-            return
-          }
-
-          if (normalized.span) {
-            scopedReporter.errorAtSpan(normalized.span, normalized.message)
-            return
-          }
-
-          if (typeof normalized.line === 'number') {
-            scopedReporter.errorAtLine(normalized.line, normalized.message)
-            return
-          }
-
-          scopedReporter.error(normalized.message)
-        }) as RuleContext['helpers']['reportViolation'],
-      }
-
-      const context: RuleContext = {
-        ...baseContext,
-        reporter: scopedReporter,
-        helpers,
-      }
-
-      await rule.run(context)
-    } catch (error) {
-      log('error', t.ruleExecutionFailed({ ruleName: rule.name, file }), error)
-    }
-  }
-
-  const summary = reporter.flush()
-
-  return {
-    severityCounts: summary.severityCounts,
-    totalViolations: summary.totalViolations,
-    errorViolations: summary.errorViolations,
-    violations: summary.violations,
-  }
-}
-
-interface NormalizedViolation {
-  message: string
-  span?: ReporterSpanArg
-  line?: number
-  code?: string
-  suggestions?: ReadonlyArray<SuggestionEntry>
-}
-
-interface ReporterRecordPayload {
-  description: string
-  code?: string
-  suggestions?: ReadonlyArray<SuggestionEntry>
-  span?: ReporterSpanArg
-  line?: number
-}
-
-type SuggestionEntry = {
-  text: string
-  link?: string
-}
-
-function normalizeViolationInput(
-  input: unknown,
-  spanArg?: ReporterSpanArg
-): NormalizedViolation {
-  // 规则既可以直接输出字符串，也可以输出结构化对象；这里统一为标准格式。
-  if (typeof input === 'string') {
-    return {
-      message: input,
-      span: spanArg,
-    }
-  }
-
-  if (input && typeof input === 'object') {
-    const candidate = input as {
-      description?: unknown
-      message?: unknown
-      span?: ReporterSpanArg
-      line?: number
-      code?: unknown
-      suggestions?: unknown
-    }
-
-    const description =
-      typeof candidate.description === 'string'
-        ? candidate.description
-        : typeof candidate.message === 'string'
-          ? candidate.message
-          : undefined
-
-    const code = typeof candidate.code === 'string' ? candidate.code : undefined
-
-    let suggestions: ReadonlyArray<SuggestionEntry> | undefined
-    if (Array.isArray(candidate.suggestions)) {
-      const normalizedSuggestions: SuggestionEntry[] = []
-
-      for (const entry of candidate.suggestions) {
-        if (typeof entry === 'string') {
-          normalizedSuggestions.push({ text: entry })
-          continue
-        }
-
-        if (entry && typeof entry === 'object') {
-          const suggestion = entry as { text?: unknown; link?: unknown }
-          if (typeof suggestion.text === 'string') {
-            normalizedSuggestions.push({
-              text: suggestion.text,
-              link: typeof suggestion.link === 'string' ? suggestion.link : undefined,
-            })
-          }
-        }
-      }
-
-      if (normalizedSuggestions.length > 0) {
-        suggestions = normalizedSuggestions
-      }
-    }
-
-    return {
-      message: description ?? 'Rule violation detected.',
-      span: candidate.span ?? spanArg,
-      line: typeof candidate.line === 'number' ? candidate.line : undefined,
-      code,
-      suggestions,
-    }
-  }
-
-  return {
-    message: 'Rule violation detected.',
-    span: spanArg,
   }
 }
 
@@ -817,7 +689,8 @@ const options = program.opts<{
 const cliArguments = program.args as string[]
 
 setLanguage(options.language ?? process.env.LANG)
-setTsConfigPath(options.tsconfig ? path.resolve(process.cwd(), options.tsconfig) : undefined)
+const resolvedTsconfigPath = options.tsconfig ? path.resolve(process.cwd(), options.tsconfig) : undefined
+setTsConfigPath(resolvedTsconfigPath)
 
 let outputFormat: OutputFormat
 let progressOption: ProgressOption | undefined

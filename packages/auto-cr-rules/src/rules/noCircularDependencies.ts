@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { RuleSeverity, defineRule } from '../types'
+import { resolveLineFromByteOffset } from '../sourceIndex'
 
 /**
  * 检测循环依赖：
@@ -27,11 +28,9 @@ const workspacePackageCache = new Map<string, Map<string, WorkspacePackage>>()
 export const noCircularDependencies = defineRule(
   'no-circular-dependencies',
   { tag: 'base', severity: RuleSeverity.Warning },
-  ({ ast, filePath, helpers, language, messages, source }) => {
+  ({ filePath, helpers, language, messages, source, sourceIndex }) => {
     const origin = path.resolve(filePath)
     const root = resolveProjectRoot(origin)
-    const moduleStart = ast.span?.start ?? 0
-    const lineIndex = buildLineIndex(source)
     const resolver = createModuleResolver(root)
     const resolvedTargets = new Set<string>()
     const warnedSpecifiers = new Set<string>()
@@ -44,8 +43,9 @@ export const noCircularDependencies = defineRule(
         const warningKey = `${origin}:${reference.value}`
         if (!warnedSpecifiers.has(warningKey)) {
           warnedSpecifiers.add(warningKey)
+          // 共享 sourceIndex 统一做 byte -> line 转换，保证多字节字符定位准确。
           const computedLine = reference.span
-            ? resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, reference.span.start))
+            ? resolveLineFromByteOffset(source, sourceIndex, reference.span.start)
             : undefined
           const fallbackLine = findImportLine(source, reference.value)
           const line = selectLineNumber(computedLine, fallbackLine)
@@ -96,8 +96,9 @@ export const noCircularDependencies = defineRule(
             ]
 
       // 优先使用 SWC 的 span 计算行号，作为高可信位置；失败时再用文本匹配兜底。
+      // 使用共享 sourceIndex 计算行号，避免重复构建行号索引。
       const computedLine = reference.span
-        ? resolveLine(lineIndex, bytePosToCharIndex(source, moduleStart, reference.span.start))
+        ? resolveLineFromByteOffset(source, sourceIndex, reference.span.start)
         : undefined
       const fallbackLine = findImportLine(source, reference.value)
       const line = selectLineNumber(computedLine, fallbackLine)
@@ -1197,88 +1198,6 @@ const formatCycle = (cycle: string[], root: string): string => {
   })
 
   return formatted.join(' -> ')
-}
-
-type LineIndex = {
-  offsets: number[]
-}
-
-const buildLineIndex = (source: string): LineIndex => {
-  const offsets: number[] = [0]
-
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === '\n') {
-      offsets.push(index + 1)
-    }
-  }
-
-  return { offsets }
-}
-
-const resolveLine = ({ offsets }: LineIndex, position: number): number => {
-  let low = 0
-  let high = offsets.length - 1
-
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2)
-    const current = offsets[mid]
-
-    if (current === position) {
-      return mid + 1
-    }
-
-    if (current < position) {
-      low = mid + 1
-    } else {
-      high = mid - 1
-    }
-  }
-
-  return high + 1
-}
-
-const readUtf8Character = (source: string, index: number, code: number): { bytes: number; nextIndex: number } => {
-  if (code <= 0x7f) {
-    return { bytes: 1, nextIndex: index + 1 }
-  }
-
-  if (code <= 0x7ff) {
-    return { bytes: 2, nextIndex: index + 1 }
-  }
-
-  if (code >= 0xd800 && code <= 0xdbff && index + 1 < source.length) {
-    const next = source.charCodeAt(index + 1)
-    if (next >= 0xdc00 && next <= 0xdfff) {
-      return { bytes: 4, nextIndex: index + 2 }
-    }
-  }
-
-  return { bytes: 3, nextIndex: index + 1 }
-}
-
-const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number): number => {
-  const target = Math.max(bytePos - moduleStart, 0)
-
-  if (target === 0) {
-    return 0
-  }
-
-  let index = 0
-  let byteOffset = 0
-
-  while (index < source.length) {
-    const code = source.charCodeAt(index)
-    const { bytes, nextIndex } = readUtf8Character(source, index, code)
-
-    if (byteOffset + bytes > target) {
-      return index
-    }
-
-    byteOffset += bytes
-    index = nextIndex
-  }
-
-  return source.length
 }
 
 const findImportLine = (source: string, value: string): number | undefined => {

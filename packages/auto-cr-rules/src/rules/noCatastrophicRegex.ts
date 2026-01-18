@@ -1,13 +1,12 @@
-import type { CallExpression, Expression, NewExpression, RegExpLiteral, Span, TemplateLiteral } from '@swc/types'
+import type { CallExpression, Expression, NewExpression, Span, TemplateLiteral } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
-import { walkHotPath } from './utils/hotPath'
 
 // 检测热路径中可能引发灾难性回溯的嵌套无限量词正则。
 // 只处理字面量或静态字符串/模板字符串构造的 RegExp，忽略动态拼接。
 export const noCatastrophicRegex = defineRule(
   'no-catastrophic-regex',
   { tag: 'performance', severity: RuleSeverity.Optimizing },
-  ({ ast, helpers, language, messages }) => {
+  ({ analysis, helpers, language, messages }) => {
     const suggestions =
       language === 'zh'
         ? [
@@ -19,54 +18,56 @@ export const noCatastrophicRegex = defineRule(
             { text: 'Split the regex into multiple passes or pre-filter before matching.' },
           ]
 
-    walkHotPath(ast, (node, inHot) => {
-      if (!inHot || !node || typeof node !== 'object') {
-        return
+    // hotPath 索引已由共享遍历生成，这里直接遍历相关节点。
+    for (const literal of analysis.hotPath.regExpLiterals) {
+      if (!hasNestedUnboundedQuantifier(literal.pattern)) {
+        continue
       }
 
-      const candidate = node as { type?: string }
+      helpers.reportViolation(
+        {
+          description: messages.noCatastrophicRegex({ pattern: literal.pattern }),
+          code: literal.pattern,
+          suggestions,
+          span: literal.span,
+        },
+        literal.span
+      )
+    }
 
-      // 直接的 /.../ 字面量。
-      if (candidate.type === 'RegExpLiteral') {
-        const literal = candidate as RegExpLiteral
-        if (!hasNestedUnboundedQuantifier(literal.pattern)) {
-          return
-        }
-
-        helpers.reportViolation(
-          {
-            description: messages.noCatastrophicRegex({ pattern: literal.pattern }),
-            code: literal.pattern,
-            suggestions,
-            span: literal.span,
-          },
-          literal.span
-        )
-        return
+    for (const callExpression of analysis.hotPath.callExpressions) {
+      const info = extractRegExpPattern(callExpression)
+      if (!info || !hasNestedUnboundedQuantifier(info.pattern)) {
+        continue
       }
 
-      // RegExp('...') 或 new RegExp('...') 的静态模式。
-      if (candidate.type === 'CallExpression' || candidate.type === 'NewExpression') {
-        const info = extractRegExpPattern(candidate as CallExpression | NewExpression)
-        if (!info) {
-          return
-        }
+      helpers.reportViolation(
+        {
+          description: messages.noCatastrophicRegex({ pattern: info.pattern }),
+          code: info.pattern,
+          suggestions,
+          span: info.span,
+        },
+        info.span
+      )
+    }
 
-        if (!hasNestedUnboundedQuantifier(info.pattern)) {
-          return
-        }
-
-        helpers.reportViolation(
-          {
-            description: messages.noCatastrophicRegex({ pattern: info.pattern }),
-            code: info.pattern,
-            suggestions,
-            span: info.span,
-          },
-          info.span
-        )
+    for (const newExpression of analysis.hotPath.newExpressions) {
+      const info = extractRegExpPattern(newExpression)
+      if (!info || !hasNestedUnboundedQuantifier(info.pattern)) {
+        continue
       }
-    })
+
+      helpers.reportViolation(
+        {
+          description: messages.noCatastrophicRegex({ pattern: info.pattern }),
+          code: info.pattern,
+          suggestions,
+          span: info.span,
+        },
+        info.span
+      )
+    }
   }
 )
 

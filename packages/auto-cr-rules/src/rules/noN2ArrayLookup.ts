@@ -1,6 +1,5 @@
 import type { CallExpression, Expression, MemberExpression } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
-import { walkHotPath } from './utils/hotPath'
 
 // 线性查找方法集合：filter/some/every 也按线性查找处理。
 const LINEAR_LOOKUP_METHODS = new Set([
@@ -19,7 +18,7 @@ const LINEAR_LOOKUP_METHODS = new Set([
 export const noN2ArrayLookup = defineRule(
   'no-n2-array-lookup',
   { tag: 'performance', severity: RuleSeverity.Optimizing },
-  ({ ast, helpers, language, messages }) => {
+  ({ analysis, helpers, language, messages }) => {
     const suggestions =
       language === 'zh'
         ? [
@@ -31,20 +30,11 @@ export const noN2ArrayLookup = defineRule(
             { text: 'Cache lookup results or move the search outside the loop.' },
           ]
 
-    walkHotPath(ast, (node, inHot) => {
-      if (!inHot || !node || typeof node !== 'object') {
-        return
-      }
-
-      const candidate = node as { type?: string }
-      if (candidate.type !== 'CallExpression') {
-        return
-      }
-
-      const callExpression = candidate as CallExpression
+    // 直接遍历热路径内的调用点，避免每条规则重复走 AST。
+    for (const callExpression of analysis.hotPath.callExpressions) {
       const method = getMemberMethodName(callExpression.callee)
       if (!method || !LINEAR_LOOKUP_METHODS.has(method)) {
-        return
+        continue
       }
 
       helpers.reportViolation(
@@ -56,7 +46,7 @@ export const noN2ArrayLookup = defineRule(
         },
         callExpression.span
       )
-    })
+    }
   }
 )
 

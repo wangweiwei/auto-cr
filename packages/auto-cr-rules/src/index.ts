@@ -1,8 +1,12 @@
 // 统一导出规则类型、运行时与内置规则集合。
 export type {
+  HotCallbackEntry,
+  HotPathIndex,
   ImportReference,
   Language,
+  LoopEntry,
   Rule,
+  RuleAnalysis,
   RuleMetadata,
   RuleContext,
   RuleHelpers,
@@ -10,6 +14,7 @@ export type {
   RuleReporter,
   RuleReporterRecord,
   RuleSuggestion,
+  SourceIndex,
   RuleViolationInput,
 } from './types'
 export { RuleSeverity } from './types'

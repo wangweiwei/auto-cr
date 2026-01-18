@@ -6,7 +6,7 @@ import { getTranslator } from '../i18n'
 // 支持的配置文件候选名（从当前工作目录开始查找）。
 const RC_CANDIDATES = ['.autocrrc.json', '.autocrrc.js']
 
-type RuleSettingInput =
+export type RuleSettingInput =
   | RuleSeverity
   | 'off'
   | 'warn'

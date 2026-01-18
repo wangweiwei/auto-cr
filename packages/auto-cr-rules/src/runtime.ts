@@ -1,8 +1,10 @@
 import type { Module } from '@swc/types'
-import { collectImportReferences } from './imports'
+import { analyzeModule } from './analysis'
 import { createRuleMessages } from './messages'
+import { createSourceIndex } from './sourceIndex'
 import type {
   Language,
+  RuleAnalysis,
   RuleContext,
   RuleHelpers,
   RuleReporter,
@@ -26,9 +28,12 @@ export const createRuleContext = ({
   reporter,
   language,
 }: RuleContextOptions): RuleContext => {
-  const imports = collectImportReferences(ast)
+  // 共享 AST 分析结果：一次遍历抽取 imports/loops/callbacks/hotPath 等索引。
+  const analysis: RuleAnalysis = analyzeModule(ast)
+  // 源码行号索引：仅构建一次，规则可直接复用。
+  const sourceIndex = Object.freeze(createSourceIndex(source, ast.span?.start ?? 0))
   const messages = createRuleMessages(language)
-  const helpers = Object.freeze(createRuleHelpers(reporter, imports)) as RuleHelpers
+  const helpers = Object.freeze(createRuleHelpers(reporter, analysis.imports)) as RuleHelpers
 
   return Object.freeze({
     ast,
@@ -36,6 +41,8 @@ export const createRuleContext = ({
     source,
     language,
     reporter,
+    analysis,
+    sourceIndex,
     helpers,
     messages,
   }) as RuleContext

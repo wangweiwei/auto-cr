@@ -1,4 +1,18 @@
-import type { Module, Span } from '@swc/types'
+import type {
+  ArrowFunctionExpression,
+  CallExpression,
+  DoWhileStatement,
+  ForInStatement,
+  ForOfStatement,
+  ForStatement,
+  FunctionExpression,
+  Module,
+  NewExpression,
+  RegExpLiteral,
+  Span,
+  TryStatement,
+  WhileStatement,
+} from '@swc/types'
 
 // 规则文案与 CLI 支持的语言标识。
 export type Language = 'zh' | 'en'
@@ -47,6 +61,42 @@ export interface ImportReference {
   span?: Span
 }
 
+// 源码索引：记录模块起始偏移与每一行的起始位置，供规则做 byte -> line 的转换。
+export interface SourceIndex {
+  moduleStart: number
+  lineOffsets: number[]
+}
+
+// 循环体索引：统一抽取常见循环节点，方便规则共享“热路径”判断。
+export type LoopNode = ForStatement | WhileStatement | DoWhileStatement | ForInStatement | ForOfStatement
+
+export interface LoopEntry {
+  type: LoopNode['type']
+  node: LoopNode
+}
+
+// 热路径数组回调索引：记录回调方法名、调用点与回调函数本体。
+export interface HotCallbackEntry {
+  method: string | null
+  callExpression: CallExpression
+  callback: FunctionExpression | ArrowFunctionExpression
+}
+
+export interface HotPathIndex {
+  callExpressions: ReadonlyArray<CallExpression>
+  newExpressions: ReadonlyArray<NewExpression>
+  regExpLiterals: ReadonlyArray<RegExpLiteral>
+}
+
+// 规则共享分析结果：一次遍历抽取 imports/loops/callbacks/tryStatements/hotPath。
+export interface RuleAnalysis {
+  imports: ReadonlyArray<ImportReference>
+  loops: ReadonlyArray<LoopEntry>
+  callbacks: ReadonlyArray<HotCallbackEntry>
+  tryStatements: ReadonlyArray<TryStatement>
+  hotPath: HotPathIndex
+}
+
 // 规则文案接口（由 messages.ts 实现）。
 export interface RuleMessages {
   noDeepRelativeImports(params: { value: string; maxDepth: number }): string
@@ -73,6 +123,8 @@ export interface RuleContext {
   readonly language: Language
   readonly reporter: RuleReporter
   readonly ast: Module
+  readonly analysis: RuleAnalysis
+  readonly sourceIndex: SourceIndex
   readonly helpers: RuleHelpers
   readonly messages: RuleMessages
 }

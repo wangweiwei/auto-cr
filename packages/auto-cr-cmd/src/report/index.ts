@@ -19,6 +19,14 @@ export interface Reporter extends RuleReporter {
   flush(): ReporterSummary
 }
 
+export interface RenderViolationsOptions {
+  // text 模式会输出日志；json 模式保持静默。
+  format?: ReporterFormat
+  // 渲染前后钩子，常用于进度条重绘。
+  onBeforeReport?: () => void
+  onAfterReport?: () => void
+}
+
 export interface ReporterSummary {
   totalViolations: number
   errorViolations: number
@@ -80,8 +88,6 @@ export function createReporter(
   options: ReporterOptions = {}
 ): Reporter {
   const offsets = buildLineOffsets(source)
-  const t = getTranslator()
-  const language = getLanguage()
   const records: ViolationRecord[] = []
   const format = options.format ?? DEFAULT_FORMAT
   const onBeforeReport = options.onBeforeReport
@@ -221,46 +227,12 @@ export function createReporter(
       violations: violationSnapshot,
     }
 
-    if (violationSnapshot.length > 0 && format === 'text') {
-      onBeforeReport?.()
-      const locale = language === 'zh' ? 'zh-CN' : 'en-US'
-      const formatter = new Intl.DateTimeFormat(locale, {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
+    if (violationSnapshot.length > 0) {
+      renderViolations(filePath, violationSnapshot, {
+        format,
+        onBeforeReport,
+        onAfterReport,
       })
-
-      const indent = '    '
-      const colon = language === 'zh' ? '：' : ':'
-      const headerGap = language === 'zh' ? '' : ' '
-
-      violationSnapshot.forEach((violation) => {
-        const timestamp = formatter.format(new Date())
-        const tagLabel = t.ruleTagLabel({ tag: violation.tag })
-        const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
-        const logger = getLoggerForSeverity(violation.severity)
-        const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
-        logger(header)
-
-        const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
-        consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
-        consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
-
-        if (violation.code) {
-          consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
-        }
-
-        if (violation.suggestions && violation.suggestions.length > 0) {
-          const suggestionSeparator = language === 'zh' ? '； ' : ' | '
-          const suggestionLine = violation.suggestions
-            .map((suggestion) => t.reporterFormatSuggestion(suggestion))
-            .join(suggestionSeparator)
-
-          consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
-        }
-      })
-      onAfterReport?.()
     }
 
     records.length = 0
@@ -281,6 +253,60 @@ export function createReporter(
     forRule: buildRuleReporter,
     flush,
   }) as Reporter
+}
+
+// 复用 reporter 的输出逻辑，便于 worker 结果回放或缓存重放。
+export function renderViolations(
+  filePath: string,
+  violations: ReadonlyArray<ViolationRecord>,
+  options: RenderViolationsOptions = {}
+): void {
+  const format = options.format ?? DEFAULT_FORMAT
+  if (format !== 'text' || violations.length === 0) {
+    return
+  }
+
+  const t = getTranslator()
+  const language = getLanguage()
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US'
+  const formatter = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+
+  const indent = '    '
+  const colon = language === 'zh' ? '：' : ':'
+  const headerGap = language === 'zh' ? '' : ' '
+
+  options.onBeforeReport?.()
+  violations.forEach((violation) => {
+    const timestamp = formatter.format(new Date())
+    const tagLabel = t.ruleTagLabel({ tag: violation.tag })
+    const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
+    const logger = getLoggerForSeverity(violation.severity)
+    const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
+    logger(header)
+
+    const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
+    consola.log(`${indent}${t.reporterFileLabel()}: ${location}`)
+    consola.log(`${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
+
+    if (violation.code) {
+      consola.log(`${indent}${t.reporterCodeLabel()}: ${violation.code}`)
+    }
+
+    if (violation.suggestions && violation.suggestions.length > 0) {
+      const suggestionSeparator = language === 'zh' ? '； ' : ' | '
+      const suggestionLine = violation.suggestions
+        .map((suggestion) => t.reporterFormatSuggestion(suggestion))
+        .join(suggestionSeparator)
+
+      consola.log(`${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
+    }
+  })
+  options.onAfterReport?.()
 }
 
 function getLoggerForSeverity(severity: Severity): (message?: unknown, ...args: unknown[]) => void {

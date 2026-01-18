@@ -1,13 +1,12 @@
 import type { CallExpression, Expression, MemberExpression } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
-import { walkHotPath } from './utils/hotPath'
 
 // 检测热路径中使用标准深拷贝函数带来的性能开销。
 // 仅覆盖 JS 标准函数：structuredClone 与 JSON.parse(JSON.stringify)。
 export const noDeepCloneInLoop = defineRule(
   'no-deep-clone-in-loop',
   { tag: 'performance', severity: RuleSeverity.Optimizing },
-  ({ ast, helpers, language, messages }) => {
+  ({ analysis, helpers, language, messages }) => {
     const suggestions =
       language === 'zh'
         ? [
@@ -19,20 +18,11 @@ export const noDeepCloneInLoop = defineRule(
             { text: 'Clone only required fields or switch to a shallow copy.' },
           ]
 
-    walkHotPath(ast, (node, inHot) => {
-      if (!inHot || !node || typeof node !== 'object') {
-        return
-      }
-
-      const candidate = node as { type?: string }
-      if (candidate.type !== 'CallExpression') {
-        return
-      }
-
-      const callExpression = candidate as CallExpression
+    // hotPath.callExpressions 已经是热路径内的调用点列表，避免重复遍历 AST。
+    for (const callExpression of analysis.hotPath.callExpressions) {
       const cloneKind = getCloneKind(callExpression)
       if (!cloneKind) {
-        return
+        continue
       }
 
       helpers.reportViolation(
@@ -44,7 +34,7 @@ export const noDeepCloneInLoop = defineRule(
         },
         callExpression.span
       )
-    })
+    }
   }
 )
 

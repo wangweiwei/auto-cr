@@ -9,9 +9,18 @@ import { toRule } from 'auto-cr-rules'
 // 自定义规则加载器：只解析 JS/CJS/MJS 文件，便于在运行时动态引入。
 const SUPPORTED_EXTENSIONS = ['.js', '.cjs', '.mjs']
 
+export interface LoadCustomRulesOptions {
+  // 自定义告警处理器：主线程可收集日志，worker 可静默处理避免重复输出。
+  onWarning?: (message: string, detail?: string) => void
+}
+
 // 从指定目录读取规则文件，并转换为 Rule 列表。
-export function loadCustomRules(ruleDir?: string): Rule[] {
+export function loadCustomRules(ruleDir?: string, options: LoadCustomRulesOptions = {}): Rule[] {
   const t = getTranslator()
+  const emitWarning =
+    typeof options.onWarning === 'function'
+      ? options.onWarning
+      : (message: string, detail?: string) => consola.warn(message, detail)
   if (!ruleDir) {
     return []
   }
@@ -21,7 +30,7 @@ export function loadCustomRules(ruleDir?: string): Rule[] {
     : path.resolve(process.cwd(), ruleDir)
 
   if (!fs.existsSync(absolutePath)) {
-    consola.warn(t.customRuleDirMissing({ path: absolutePath }))
+    emitWarning(t.customRuleDirMissing({ path: absolutePath }))
     return []
   }
 
@@ -36,16 +45,14 @@ export function loadCustomRules(ruleDir?: string): Rule[] {
       const rules = extractRules(moduleExports, file)
 
       if (!rules.length) {
-        consola.warn(t.customRuleNoExport({ file }))
+        emitWarning(t.customRuleNoExport({ file }))
         continue
       }
 
       loaded.push(...rules)
     } catch (error) {
-      consola.warn(
-        t.customRuleLoadFailed({ file }),
-        error instanceof Error ? error.message : error
-      )
+      const detail = error instanceof Error ? error.message : String(error)
+      emitWarning(t.customRuleLoadFailed({ file }), detail)
     }
   }
 
