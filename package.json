@@ -7,6 +7,7 @@
     "dev": "pnpm --filter auto-cr-cmd run dev",
     "format": "pnpm --filter auto-cr-cmd run format",
     "cli": "pnpm --filter auto-cr-cmd run cli",
+    "prepare": "node scripts/setup-git-hooks.mjs",
     "version": "node scripts/bump-version.mjs",
     "publish:rules": "pnpm --filter auto-cr-rules run release",
     "publish:cmd": "pnpm --filter auto-cr-cmd run release",
