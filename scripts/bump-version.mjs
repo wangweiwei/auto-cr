@@ -88,9 +88,10 @@ const updatePackage = (packageName, nextVersion) => {
   const content = JSON.parse(readFileSync(packagePath, 'utf-8'))
   content.version = nextVersion
 
-  if (packageName === 'auto-cr-cmd' && content.dependencies?.['auto-cr-rules']) {
-    content.dependencies['auto-cr-rules'] = `^${nextVersion}`
-  }
+  // 发布脚本改为只更新包自身 version，不再改写 auto-cr-cmd 里的 auto-cr-rules 依赖版本
+  // if (packageName === 'auto-cr-cmd' && content.dependencies?.['auto-cr-rules']) {
+  //   content.dependencies['auto-cr-rules'] = `^${nextVersion}`
+  // }
 
   writeFileSync(packagePath, `${JSON.stringify(content, null, 2)}\n`)
   return packagePath
