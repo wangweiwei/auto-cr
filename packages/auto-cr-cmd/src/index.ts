@@ -25,6 +25,16 @@ consola.options.formatOptions = {
   date: false,
 }
 
+// 文本输出统一写入 stderr，避免多线程时 stdout/stderr 混排导致顺序错乱。
+const textLogger = consola.create({
+  stdout: process.stderr,
+  stderr: process.stderr,
+})
+textLogger.options.formatOptions = {
+  ...textLogger.options.formatOptions,
+  date: false,
+}
+
 interface ScanSummary {
   scannedFiles: number
   filesWithErrors: number
@@ -51,9 +61,9 @@ interface FileScanResult {
 type OutputFormat = ReporterFormat
 
 const consolaLoggers = {
-  info: consola.info.bind(consola),
-  warn: consola.warn.bind(consola),
-  error: consola.error.bind(consola),
+  info: textLogger.info.bind(textLogger),
+  warn: textLogger.warn.bind(textLogger),
+  error: textLogger.error.bind(textLogger),
 } as const
 
 // 仅扫描 JS/TS 源码扩展名，避免把配置文件/JSON/图片等送进 SWC 解析导致报错。
@@ -727,13 +737,13 @@ try {
     }
 
     if (result.scannedFiles > 0) {
-      consola.log(' ')
+      textLogger.log(' ')
       const language = getLanguage()
       const resultMessage = language.startsWith('zh')
         ? ` ${t.scanComplete()}，本次共扫描${result.scannedFiles}个文件，其中${result.filesWithErrors}个文件存在错误，${result.filesWithWarnings}个文件存在警告，${result.filesWithOptimizing}个文件存在优化建议！`
         : ` ${t.scanComplete()}, scanned ${result.scannedFiles} files: ${result.filesWithErrors} with errors, ${result.filesWithWarnings} with warnings, ${result.filesWithOptimizing} with optimizing hints!`
 
-      consola.success(resultMessage)
+      textLogger.success(resultMessage)
       const exitCode = result.filesWithErrors > 0 ? 1 : 0
       process.exit(exitCode)
     } else {

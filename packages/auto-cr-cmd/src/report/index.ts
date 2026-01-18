@@ -75,11 +75,21 @@ type CompatibleRuleReporter = RuleReporter & {
 
 const UNTAGGED_TAG = 'untagged'
 const DEFAULT_FORMAT: ReporterFormat = 'text'
+// 文本输出统一写入 stderr，避免 stdout/stderr 混排导致顺序错乱。
+const textLogger = consola.create({
+  stdout: process.stderr,
+  stderr: process.stderr,
+})
+textLogger.options.formatOptions = {
+  ...textLogger.options.formatOptions,
+  date: false,
+}
+
 // 不同严重级别映射到不同日志级别。
 const severityLoggers: Record<Severity, (message?: unknown, ...args: unknown[]) => void> = {
-  [RuleSeverity.Error]: consola.error,
-  [RuleSeverity.Warning]: consola.warn,
-  [RuleSeverity.Optimizing]: consola.info,
+  [RuleSeverity.Error]: textLogger.error,
+  [RuleSeverity.Warning]: textLogger.warn,
+  [RuleSeverity.Optimizing]: textLogger.info,
 }
 
 export function createReporter(
@@ -293,11 +303,8 @@ export function renderViolations(
     const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
     logger(header)
 
-    // 让 header 与详情走同一输出流，避免 stdout/stderr 混排导致顺序错乱。
-    const detailStream =
-      violation.severity === RuleSeverity.Error || violation.severity === RuleSeverity.Warning
-        ? process.stderr
-        : process.stdout
+    // header 与详情统一走 stderr，避免多线程混排导致输出顺序错乱。
+    const detailStream = process.stderr
     const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
     writeLine(detailStream, `${indent}${t.reporterFileLabel()}: ${location}`)
     writeLine(detailStream, `${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
@@ -319,7 +326,7 @@ export function renderViolations(
 }
 
 function getLoggerForSeverity(severity: Severity): (message?: unknown, ...args: unknown[]) => void {
-  return severityLoggers[severity] ?? consola.error
+  return severityLoggers[severity] ?? textLogger.error
 }
 
 function resolveLine(record: ReporterRecordPayload, offsets: LineOffsets): number | undefined {
