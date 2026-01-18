@@ -16,4 +16,12 @@ export { RuleSeverity } from './types'
 export { defineRule, isRule, toRule } from './types'
 export { createRuleContext } from './runtime'
 export type { RuleContextOptions } from './runtime'
-export { builtinRules, noDeepRelativeImports, noCircularDependencies, noSwallowedErrors } from './rules'
+export {
+  builtinRules,
+  noDeepRelativeImports,
+  noCircularDependencies,
+  noSwallowedErrors,
+  noCatastrophicRegex,
+  noDeepCloneInLoop,
+  noN2ArrayLookup,
+} from './rules'

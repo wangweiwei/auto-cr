@@ -99,6 +99,7 @@ const translations = {
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
         base: '基础规则',
+        performance: '性能规则',
         untagged: '未定义'
       }
       
@@ -165,6 +166,7 @@ const translations = {
     ruleTagLabel: ({ tag }) => {
       const labels: Record<string, string> = {
         base: 'Base Rules',
+        performance: 'Performance Rules',
         untagged: 'untagged'
       }
 

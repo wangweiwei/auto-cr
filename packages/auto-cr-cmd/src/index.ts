@@ -9,11 +9,17 @@ import { createReporter, type ReporterFormat, type ViolationRecord } from './rep
 import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { readFile, getAllFiles, checkPathExists } from './utils/file'
 import { readPathsFromStdin } from './utils/stdin'
-import { builtinRules, createRuleContext, RuleSeverity } from 'auto-cr-rules'
+import type { RuleSeverity as RuleSeverityType } from 'auto-cr-rules'
 import { loadCustomRules } from './rules/loader'
 import { applyRuleConfig, loadAutoCrRc } from './config/autocrrc'
 import { createIgnoreMatcher, loadIgnoreConfig } from './config/ignore'
 import type { Rule, RuleContext, RuleReporter } from 'auto-cr-rules'
+
+type RulesRuntime = {
+  builtinRules: Rule[]
+  createRuleContext: typeof import('auto-cr-rules').createRuleContext
+  RuleSeverity: typeof import('auto-cr-rules').RuleSeverity
+}
 
 consola.options.formatOptions = {
   ...consola.options.formatOptions,
@@ -72,9 +78,48 @@ const consolaLoggers = {
 // 仅扫描 JS/TS 源码扩展名，避免把配置文件/JSON/图片等送进 SWC 解析导致报错。
 const SCANNABLE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
+// 运行 TS 源码时优先加载本地 rules，避免开发时拿到旧的 workspace 依赖。
+const rulesRuntime = loadRulesRuntime()
+const builtinRules = rulesRuntime.builtinRules
+const createRuleContext = rulesRuntime.createRuleContext
+const RuleSeverity = rulesRuntime.RuleSeverity
+
 // 单文件路径也走扩展名过滤，保证与目录扫描的行为一致。
 const isScannableFile = (filePath: string): boolean =>
   SCANNABLE_EXTENSIONS.some((extension) => filePath.endsWith(extension))
+
+function loadRulesRuntime(): RulesRuntime {
+  const fallback = require('auto-cr-rules') as RulesRuntime
+  const localRuntime = resolveLocalRulesRuntime()
+
+  if (localRuntime) {
+    return localRuntime
+  }
+
+  return fallback
+}
+
+function resolveLocalRulesRuntime(): RulesRuntime | null {
+  if (!__filename.endsWith('.ts')) {
+    return null
+  }
+
+  const localEntry = path.resolve(__dirname, '../../auto-cr-rules/src/index.ts')
+  if (!fs.existsSync(localEntry)) {
+    return null
+  }
+
+  try {
+    const localRuntime = require(localEntry) as RulesRuntime
+    if (Array.isArray(localRuntime.builtinRules)) {
+      return localRuntime
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
 
 /**
  * CLI 主流程：
@@ -690,7 +735,7 @@ interface JsonOutputPayload {
   notifications: Notification[]
 }
 
-function severityToLabel(severity: RuleSeverity): JsonSeverity {
+function severityToLabel(severity: RuleSeverityType): JsonSeverity {
   switch (severity) {
     case RuleSeverity.Warning:
       return 'warning'

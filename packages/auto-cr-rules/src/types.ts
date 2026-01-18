@@ -52,6 +52,9 @@ export interface RuleMessages {
   noDeepRelativeImports(params: { value: string; maxDepth: number }): string
   swallowedError(): string
   circularDependency(params: { chain: string }): string
+  noCatastrophicRegex(params: { pattern: string }): string
+  noDeepCloneInLoop(): string
+  noN2ArrayLookup(params: { method: string }): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。
