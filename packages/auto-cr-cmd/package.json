@@ -19,7 +19,7 @@
     "start": "node dist/index.js",
     "cli": "ts-node src/index.ts",
     "prepublishOnly": "pnpm run build",
-    "release": "pnpm run build && npm publish --access public",
+    "release": "pnpm run build && pnpm publish --access public --no-git-checks",
     "format": "prettier --write src"
   },
   "keywords": [
@@ -47,7 +47,7 @@
   "dependencies": {
     "@swc/core": "^1.15.8",
     "@swc/wasm": "^1.15.8",
-    "auto-cr-rules": "^2.0.96",
+    "auto-cr-rules": "workspace:*",
     "commander": "^14.0.2",
     "consola": "^3.4.2",
     "jsonc-parser": "^3.3.1",

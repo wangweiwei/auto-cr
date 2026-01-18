@@ -13,7 +13,7 @@
     "postbuild": "node ../../scripts/readme-sync.mjs copy auto-cr-rules",
     "postbuild:force": "node ../../scripts/readme-sync.mjs copy auto-cr-rules",
     "prepublishOnly": "pnpm run build",
-    "release": "pnpm run build && npm publish --access public"
+    "release": "pnpm run build && pnpm publish --access public --no-git-checks"
   },
   "keywords": [
     "auto-cr",

@@ -33,10 +33,14 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Bump package versions
+        run: pnpm run version
       - name: Build packages
         run: pnpm run build
       - name: Publish packages
-        run: pnpm run publish
+        run: |
+          pnpm --filter auto-cr-rules publish --access public --no-git-checks
+          pnpm --filter auto-cr-cmd publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Commit version updates
