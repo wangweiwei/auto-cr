@@ -24,8 +24,8 @@ importers:
         specifier: ^1.15.8
         version: 1.15.8
       auto-cr-rules:
-        specifier: ^2.0.85
-        version: 2.0.85
+        specifier: ^2.0.87
+        version: 2.0.87
       commander:
         specifier: ^14.0.2
         version: 14.0.2
@@ -364,8 +364,8 @@ packages:
   auto-cr-rules@2.0.30:
     resolution: {integrity: sha512-n49orH0CbTYqy23DNA5vKGdLcz87hyPz/FWD6imZwDPIe1gXDq1PVbM/0ueYauslJOh0s8g/P2nNpTH9ojiVbg==}
 
-  auto-cr-rules@2.0.85:
-    resolution: {integrity: sha512-xodFz17D2fadvEUKohTlmiQ21xFc97JRevYmKcsi8DUFL23J1cAF1U0VD+xK7RlZYNSh9dgH/KJmCtXne2B6Lw==}
+  auto-cr-rules@2.0.87:
+    resolution: {integrity: sha512-O+zybcZ86nw6LEwHDUNk7m4lASqjh6bal25i2qTuwsubKHiSQ3nfWctLtisJQmADujvMLeJM1opC7u2x4fWOSg==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -1023,7 +1023,7 @@ snapshots:
     dependencies:
       '@swc/types': 0.1.25
 
-  auto-cr-rules@2.0.85:
+  auto-cr-rules@2.0.87:
     dependencies:
       '@swc/types': 0.1.25
 
