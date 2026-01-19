@@ -52,17 +52,14 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 示例输出：
 
 ```text
- WARN  [12:52:48] ⚠️ [基础规则]：no-deep-relative-imports 
-  
-    文件位置: .../dashboard.ts:2
-    错误描述: 导入路径 "../../../../shared/deep/utils"，不能超过最大层级2
-    错误代码: ../../../../shared/deep/utils
-    优化建议: 使用别名路径（如 @shared/deep/utils）； 或在上层聚合导出，避免过深相对路径。
-
- WARN  [12:52:48] ⚠️ [未定义]：no-index-import
-
-    文件位置: .../dashboard.ts:3
-    错误描述: 禁止直接导入 ../../consts/index，请改用具体文件
+[auto-cr] [warning] .../dashboard.ts:2 导入路径 "../../../../shared/deep/utils"，不能超过最大层级2
+  rule: no-deep-relative-imports (基础规则)
+  code: ../../../../shared/deep/utils
+  suggestion:
+    - 使用别名路径（如 @shared/deep/utils）。
+    - 或在上层聚合导出，避免过深相对路径。
+[auto-cr] [warning] .../dashboard.ts:3 禁止直接导入 ../../consts/index，请改用具体文件
+  rule: no-index-import (未定义)
 
 ✔  代码扫描完成，本次共扫描3个文件，其中0个文件存在错误，1个文件存在警告，0个文件存在优化建议！
 ```

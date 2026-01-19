@@ -52,17 +52,14 @@ Common flags:
 Sample output:
 
 ```text
- WARN  [12:56:18] ⚠️ [Base Rules]: no-deep-relative-imports
-
-    File: /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:2 
-    Description: Import path "../../../../shared/deep/utils" must not exceed max depth 2 
-    Code: ../../../../shared/deep/utils
-    Suggestion: Use a path alias (for example: @shared/deep/utils). | Create an index file at a higher level to re-export the module and shorten the import.
-
- WARN  [12:56:18] ⚠️ [untagged]: no-index-import
-
-    File: /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:3
-    Description: Import ../../consts/index is not allowed. Import the concrete file instead.
+[auto-cr] [warning] /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:2 Import path "../../../../shared/deep/utils" must not exceed max depth 2
+  rule: no-deep-relative-imports (Base)
+  code: ../../../../shared/deep/utils
+  suggestion:
+    - Use a path alias (for example: @shared/deep/utils).
+    - Create an index file at a higher level to re-export the module and shorten the import.
+[auto-cr] [warning] /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:3 Import ../../consts/index is not allowed. Import the concrete file instead.
+  rule: no-index-import (untagged)
 
 ✔  Code scan complete, scanned 3 files: 0 with errors, 1 with warnings, 0 with optimizing hints! 
 ```

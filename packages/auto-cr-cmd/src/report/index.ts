@@ -1,7 +1,6 @@
 import type { Span } from '@swc/types'
 import { RuleSeverity } from 'auto-cr-rules'
 import type { Rule, RuleReporter } from 'auto-cr-rules'
-import consola from 'consola'
 import { getLanguage, getTranslator } from '../i18n'
 
 // Reporter 负责收集规则输出，必要时直接输出到终端（text 模式），并生成结构化汇总。
@@ -76,21 +75,17 @@ type CompatibleRuleReporter = RuleReporter & {
 const UNTAGGED_TAG = 'untagged'
 const DEFAULT_FORMAT: ReporterFormat = 'text'
 // 文本输出统一写入 stderr，避免 stdout/stderr 混排导致顺序错乱。
-const textLogger = consola.create({
-  stdout: process.stderr,
-  stderr: process.stderr,
-})
-textLogger.options.formatOptions = {
-  ...textLogger.options.formatOptions,
-  date: false,
+const SEVERITY_LABELS: Record<Severity, string> = {
+  [RuleSeverity.Error]: 'error',
+  [RuleSeverity.Warning]: 'warning',
+  [RuleSeverity.Optimizing]: 'optimizing',
 }
-
-// 不同严重级别映射到不同日志级别。
-const severityLoggers: Record<Severity, (message?: unknown, ...args: unknown[]) => void> = {
-  [RuleSeverity.Error]: textLogger.error,
-  [RuleSeverity.Warning]: textLogger.warn,
-  [RuleSeverity.Optimizing]: textLogger.info,
+const SEVERITY_COLORS: Record<Severity, string> = {
+  [RuleSeverity.Error]: '\x1b[31m',
+  [RuleSeverity.Warning]: '\x1b[33m',
+  [RuleSeverity.Optimizing]: '\x1b[90m',
 }
+const RESET_COLOR = '\x1b[0m'
 
 export function createReporter(
   filePath: string,
@@ -276,57 +271,76 @@ export function renderViolations(
     return
   }
 
-  const t = getTranslator()
-  const language = getLanguage()
-  const locale = language === 'zh' ? 'zh-CN' : 'en-US'
-  const formatter = new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
-
-  const indent = '    '
-  const colon = language === 'zh' ? '：' : ':'
-  const headerGap = language === 'zh' ? '' : ' '
-
-  const writeLine = (stream: NodeJS.WriteStream, line: string): void => {
-    stream.write(`${line}\n`)
-  }
-
   options.onBeforeReport?.()
-  violations.forEach((violation) => {
-    const timestamp = formatter.format(new Date())
-    const tagLabel = t.ruleTagLabel({ tag: violation.tag })
-    const severityIcon = t.reporterSeverityIcon({ severity: violation.severity })
-    const logger = getLoggerForSeverity(violation.severity)
-    const header = `[${timestamp}] ${severityIcon} [${tagLabel}]${colon}${headerGap}${violation.ruleName}`
-    logger(header)
-
-    // header 与详情统一走 stderr，避免多线程混排导致输出顺序错乱。
-    const detailStream = process.stderr
-    const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : filePath
-    writeLine(detailStream, `${indent}${t.reporterFileLabel()}: ${location}`)
-    writeLine(detailStream, `${indent}${t.reporterDescriptionLabel()}: ${violation.message}`)
-
-    if (violation.code) {
-      writeLine(detailStream, `${indent}${t.reporterCodeLabel()}: ${violation.code}`)
-    }
-
-    if (violation.suggestions && violation.suggestions.length > 0) {
-      const suggestionSeparator = language === 'zh' ? '； ' : ' | '
-      const suggestionLine = violation.suggestions
-        .map((suggestion) => t.reporterFormatSuggestion(suggestion))
-        .join(suggestionSeparator)
-
-      writeLine(detailStream, `${indent}${t.reporterSuggestionLabel()}: ${suggestionLine}`)
-    }
-  })
+  renderCompactViolations(filePath, violations)
   options.onAfterReport?.()
 }
 
-function getLoggerForSeverity(severity: Severity): (message?: unknown, ...args: unknown[]) => void {
-  return severityLoggers[severity] ?? textLogger.error
+function renderCompactViolations(filePath: string, violations: ReadonlyArray<ViolationRecord>): void {
+  const t = getTranslator()
+  const language = getLanguage()
+  const stream = process.stderr
+  const useColor = Boolean(stream.isTTY) && !process.env.NO_COLOR
+  const prefix = '[auto-cr] '
+  const indent = '  '
+  const bulletIndent = '    '
+
+  violations.forEach((violation) => {
+    const severityLabel = SEVERITY_LABELS[violation.severity] ?? 'error'
+    const color = useColor ? SEVERITY_COLORS[violation.severity] ?? '' : ''
+    const reset = useColor ? RESET_COLOR : ''
+    const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : `${filePath}:-`
+    const codeText = violation.code ? compactText(violation.code) : undefined
+    const message = stripRedundantCodeSuffix(compactText(violation.message), codeText)
+    const header = `${prefix}${color}[${severityLabel}] ${location} ${message}${reset}`
+    stream.write(`${header}\n`)
+
+    const tagLabel = formatTagLabel(violation.tag, language, t)
+    const tagSuffix = tagLabel ? ` (${tagLabel})` : ''
+    stream.write(`${indent}rule: ${violation.ruleName}${tagSuffix}\n`)
+
+    if (codeText) {
+      stream.write(`${indent}code: ${codeText}\n`)
+    }
+
+    if (violation.suggestions && violation.suggestions.length > 0) {
+      stream.write(`${indent}suggestion:\n`)
+      violation.suggestions.forEach((suggestion) => {
+        stream.write(`${bulletIndent}- ${compactText(t.reporterFormatSuggestion(suggestion))}\n`)
+      })
+    }
+  })
+}
+
+function formatTagLabel(tag: string, language: string, t: ReturnType<typeof getTranslator>): string {
+  const label = t.ruleTagLabel({ tag })
+  if (language === 'en' && label.endsWith(' Rules')) {
+    return label.slice(0, -' Rules'.length)
+  }
+
+  return label
+}
+
+function compactText(value: string): string {
+  return value.replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim()
+}
+
+function stripRedundantCodeSuffix(message: string, code?: string): string {
+  if (!code) {
+    return message
+  }
+
+  const trimmed = message.trim()
+  const pattern = new RegExp(`:\\s*${escapeRegExp(code)}$`)
+  if (pattern.test(trimmed)) {
+    return trimmed.replace(pattern, '').trim()
+  }
+
+  return message
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function resolveLine(record: ReporterRecordPayload, offsets: LineOffsets): number | undefined {
