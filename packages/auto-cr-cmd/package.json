@@ -62,7 +62,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^17.0.0",
     "jiti": "^2.5.1",
-    "prettier": "^3.7.4",
+    "prettier": "^3.8.0",
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",
     "typescript": "^5.9.2",
