@@ -9,6 +9,7 @@ import { renderViolations, type ReporterFormat, type ViolationRecord } from './r
 import { getLanguage, getTranslator, setLanguage } from './i18n'
 import { getAllFiles, checkPathExists } from './utils/file'
 import { readPathsFromStdin } from './utils/stdin'
+import { normalizeInputPath } from './utils/path'
 import type { RuleSeverity as RuleSeverityType } from 'auto-cr-rules'
 import { analyzeFile, type ReporterHooks } from './scan/analyzeFile'
 import type { AnalyzeFileSummary, FileSeveritySummary, Logger, Notification, NotificationLevel } from './scan/types'
@@ -294,7 +295,26 @@ async function run(
       }
     }
 
-    const validPaths = filePaths.filter((candidate) => checkPathExists(candidate))
+    // ignore 配置只影响收集阶段，避免无关文件被解析或影响统计。
+    const ignoreConfig = loadIgnoreConfig(ignorePath)
+    ignoreConfig.warnings.forEach((warning) => log('warn', warning))
+    const isIgnored = createIgnoreMatcher(ignoreConfig.patterns, ignoreConfig.baseDir)
+
+    const filteredPaths = filePaths.filter((candidate) => !isIgnored(candidate))
+    if (filteredPaths.length === 0) {
+      log('info', t.noFilesFound())
+      return {
+        scannedFiles: 0,
+        filesWithErrors: 0,
+        filesWithWarnings: 0,
+        filesWithOptimizing: 0,
+        violationTotals: { total: 0, error: 0, warning: 0, optimizing: 0 },
+        files: [],
+        notifications,
+      }
+    }
+
+    const validPaths = filteredPaths.filter((candidate) => checkPathExists(candidate))
     if (validPaths.length === 0) {
       log('error', t.allPathsMissing())
       return {
@@ -307,11 +327,6 @@ async function run(
         notifications,
       }
     }
-
-    // ignore 配置只影响收集阶段，避免无关文件被解析或影响统计。
-    const ignoreConfig = loadIgnoreConfig(ignorePath)
-    ignoreConfig.warnings.forEach((warning) => log('warn', warning))
-    const isIgnored = createIgnoreMatcher(ignoreConfig.patterns, ignoreConfig.baseDir)
 
     // 先展开路径，再进行二次过滤，保证 ignore 与扩展名筛选一致生效。
     let allFiles: string[] = []
@@ -725,7 +740,8 @@ try {
   try {
     const stdinTargets = await readPathsFromStdin(Boolean(options.stdin))
     const combinedTargets = [...cliArguments, ...stdinTargets]
-    const filePaths = combinedTargets.map((target) => path.resolve(process.cwd(), target))
+    const normalizedTargets = combinedTargets.map((target) => normalizeInputPath(target))
+    const filePaths = normalizedTargets.map((target) => path.resolve(process.cwd(), target))
     const result = await run(filePaths, options.ruleDir, outputFormat, options.config, options.ignorePath, progressOption)
     const t = getTranslator()
 
