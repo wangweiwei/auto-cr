@@ -45,7 +45,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@swc/core": "^1.15.8",
+    "@swc/core": "^1.15.10",
     "@swc/wasm": "^1.15.10",
     "auto-cr-rules": "workspace:*",
     "commander": "^14.0.2",
