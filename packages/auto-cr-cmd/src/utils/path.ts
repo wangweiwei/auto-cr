@@ -16,8 +16,9 @@ const isHexDigit = (char: string): boolean =>
   (char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')
 
 const pushUtf8Bytes = (bytes: number[], text: string) => {
-  for (const byte of Buffer.from(text, 'utf8')) {
-    bytes.push(byte)
+  const buffer = Buffer.from(text, 'utf8')
+  for (let index = 0; index < buffer.length; index += 1) {
+    bytes.push(buffer[index])
   }
 }
 
