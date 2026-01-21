@@ -1060,6 +1060,7 @@ const readFileSafe = (filePath: string): string | null => {
 // 用正则匹配常见的导入写法，覆盖 import / dynamic import / require / export-from。
 const extractImportSpecifiers = (source: string): string[] => {
   const results: string[] = []
+  const sanitized = stripJsComments(source)
   const patterns = [
     /import\s+(?:[^'"]+\s+from\s+)?['"]([^'"]+)['"]/g,
     /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
@@ -1069,12 +1070,80 @@ const extractImportSpecifiers = (source: string): string[] => {
 
   for (const pattern of patterns) {
     let match: RegExpExecArray | null
-    while ((match = pattern.exec(source)) !== null) {
+    while ((match = pattern.exec(sanitized)) !== null) {
       results.push(match[1])
     }
   }
 
   return results
+}
+
+// 轻量移除 JS/TS 注释，避免注释里的 import/require 被正则误判。
+const stripJsComments = (content: string): string => {
+  let result = ''
+  let inString = false
+  let stringChar = ''
+  let inLineComment = false
+  let inBlockComment = false
+  let escaped = false
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index]
+    const next = content[index + 1]
+
+    if (inLineComment) {
+      if (char === '\n') {
+        inLineComment = false
+        result += char
+      }
+      continue
+    }
+
+    if (inBlockComment) {
+      if (char === '*' && next === '/') {
+        inBlockComment = false
+        index += 1
+        result += ' '
+      } else if (char === '\n') {
+        result += char
+      }
+      continue
+    }
+
+    if (inString) {
+      result += char
+      if (!escaped && char === stringChar) {
+        inString = false
+        stringChar = ''
+      }
+      escaped = !escaped && char === '\\'
+      continue
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      inString = true
+      stringChar = char
+      result += char
+      continue
+    }
+
+    if (char === '/' && next === '/') {
+      inLineComment = true
+      index += 1
+      continue
+    }
+
+    if (char === '/' && next === '*') {
+      inBlockComment = true
+      index += 1
+      result += ' '
+      continue
+    }
+
+    result += char
+  }
+
+  return result
 }
 
 // 解析相对路径到真实文件：支持自动补全扩展名与目录 index。

@@ -1,3 +1,4 @@
+import type { Span } from '@swc/types'
 import { parseSync } from '@swc/wasm'
 import { loadParseOptions } from '../config'
 import { createReporter, type ReporterFormat } from '../report'
@@ -79,6 +80,7 @@ export async function analyzeFile(
         reportViolation: ((input: unknown, span?: ReporterSpanArg): void => {
           // 统一把规则输出收敛成结构化数据，避免各规则实现重复分支。
           const normalized = normalizeViolationInput(input, span)
+          const resolvedLine = resolveLineForViolation(baseContext.source, baseContext.sourceIndex, normalized)
 
           if (typeof reporterWithRecord.record === 'function') {
             reporterWithRecord.record({
@@ -86,18 +88,18 @@ export async function analyzeFile(
               code: normalized.code,
               suggestions: normalized.suggestions,
               span: normalized.span,
-              line: normalized.line,
+              line: resolvedLine,
             })
+            return
+          }
+
+          if (resolvedLine !== undefined) {
+            scopedReporter.errorAtLine(resolvedLine, normalized.message)
             return
           }
 
           if (normalized.span) {
             scopedReporter.errorAtSpan(normalized.span, normalized.message)
-            return
-          }
-
-          if (typeof normalized.line === 'number') {
-            scopedReporter.errorAtLine(normalized.line, normalized.message)
             return
           }
 
@@ -220,4 +222,111 @@ function normalizeViolationInput(
     message: 'Rule violation detected.',
     span: spanArg,
   }
+}
+
+type SpanCarrier = { span?: Span }
+
+const resolveLineForViolation = (
+  source: string,
+  sourceIndex: RuleContext['sourceIndex'],
+  violation: NormalizedViolation
+): number | undefined => {
+  if (typeof violation.line === 'number' && Number.isFinite(violation.line)) {
+    return violation.line
+  }
+
+  const span = extractSpan(violation.span)
+  if (!span) {
+    return undefined
+  }
+
+  const line = resolveLineFromByteOffset(source, sourceIndex, span.start)
+  return Number.isFinite(line) ? line : undefined
+}
+
+const extractSpan = (spanLike: Span | SpanCarrier | undefined): Span | undefined => {
+  if (!spanLike) {
+    return undefined
+  }
+
+  if (typeof spanLike === 'object' && 'span' in spanLike) {
+    return spanLike.span
+  }
+
+  return spanLike as Span
+}
+
+const resolveLineFromByteOffset = (
+  source: string,
+  index: RuleContext['sourceIndex'],
+  byteOffset: number
+): number => {
+  const charIndex = bytePosToCharIndex(source, index.moduleStart, byteOffset)
+  return resolveLine(index.lineOffsets, charIndex)
+}
+
+const resolveLine = (lineOffsets: number[], position: number): number => {
+  let low = 0
+  let high = lineOffsets.length - 1
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    const current = lineOffsets[mid]
+
+    if (current === position) {
+      return mid + 1
+    }
+
+    if (current < position) {
+      low = mid + 1
+    } else {
+      high = mid - 1
+    }
+  }
+
+  return high + 1
+}
+
+const bytePosToCharIndex = (source: string, moduleStart: number, bytePos: number): number => {
+  const target = Math.max(bytePos - moduleStart, 0)
+
+  if (target === 0) {
+    return 0
+  }
+
+  let index = 0
+  let byteOffset = 0
+
+  while (index < source.length) {
+    const code = source.charCodeAt(index)
+    const { bytes, nextIndex } = readUtf8Character(source, index, code)
+
+    if (byteOffset + bytes > target) {
+      return index
+    }
+
+    byteOffset += bytes
+    index = nextIndex
+  }
+
+  return source.length
+}
+
+const readUtf8Character = (source: string, index: number, code: number): { bytes: number; nextIndex: number } => {
+  if (code <= 0x7f) {
+    return { bytes: 1, nextIndex: index + 1 }
+  }
+
+  if (code <= 0x7ff) {
+    return { bytes: 2, nextIndex: index + 1 }
+  }
+
+  if (code >= 0xd800 && code <= 0xdbff && index + 1 < source.length) {
+    const next = source.charCodeAt(index + 1)
+    if (next >= 0xdc00 && next <= 0xdfff) {
+      return { bytes: 4, nextIndex: index + 2 }
+    }
+  }
+
+  return { bytes: 3, nextIndex: index + 1 }
 }

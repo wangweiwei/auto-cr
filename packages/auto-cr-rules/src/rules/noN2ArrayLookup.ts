@@ -1,4 +1,5 @@
 import type { CallExpression, Expression, MemberExpression } from '@swc/types'
+import { resolveLineFromByteOffset } from '../sourceIndex'
 import { RuleSeverity, defineRule } from '../types'
 
 // 线性查找方法集合：filter/some/every 也按线性查找处理。
@@ -18,7 +19,7 @@ const LINEAR_LOOKUP_METHODS = new Set([
 export const noN2ArrayLookup = defineRule(
   'no-n2-array-lookup',
   { tag: 'performance', severity: RuleSeverity.Optimizing },
-  ({ analysis, helpers, language, messages }) => {
+  ({ analysis, helpers, language, messages, source, sourceIndex }) => {
     const suggestions =
       language === 'zh'
         ? [
@@ -37,11 +38,16 @@ export const noN2ArrayLookup = defineRule(
         continue
       }
 
+      const line = callExpression.span
+        ? resolveLineFromByteOffset(source, sourceIndex, callExpression.span.start)
+        : undefined
+
       helpers.reportViolation(
         {
           description: messages.noN2ArrayLookup({ method }),
           code: method,
           suggestions,
+          line,
           span: callExpression.span,
         },
         callExpression.span

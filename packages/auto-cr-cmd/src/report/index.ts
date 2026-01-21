@@ -62,6 +62,7 @@ export interface ViolationRecord {
   tag: string
   ruleName: string
   severity: Severity
+  filePath?: string
   message: string
   line?: number
   code?: string
@@ -108,7 +109,10 @@ export function createReporter(
   }
 
   const pushRecord = (record: ViolationRecord): void => {
-    records.push(record)
+    records.push({
+      ...record,
+      filePath: record.filePath ?? filePath,
+    })
     totalViolations += 1
 
     if (record.severity === RuleSeverity.Error) {
@@ -289,7 +293,8 @@ function renderCompactViolations(filePath: string, violations: ReadonlyArray<Vio
     const severityLabel = SEVERITY_LABELS[violation.severity] ?? 'error'
     const color = useColor ? SEVERITY_COLORS[violation.severity] ?? '' : ''
     const reset = useColor ? RESET_COLOR : ''
-    const location = typeof violation.line === 'number' ? `${filePath}:${violation.line}` : `${filePath}:-`
+    const locationPath = violation.filePath ?? filePath
+    const location = typeof violation.line === 'number' ? `${locationPath}:${violation.line}` : `${locationPath}:-`
     const codeText = violation.code ? compactText(violation.code) : undefined
     const message = stripRedundantCodeSuffix(compactText(violation.message), codeText)
     const header = `${prefix}${color}[${severityLabel}] ${location} ${message}${reset}`
