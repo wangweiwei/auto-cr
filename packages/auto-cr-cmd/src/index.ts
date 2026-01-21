@@ -129,7 +129,7 @@ async function run(
   // - --progress tty-only/yes/no 控制显示：tty-only 仅 TTY，yes 强制，no 关闭。
   // - “固定模式”会用 ANSI 保存/恢复光标，把进度绘制在固定行。
   // - 非 TTY 强制显示时只追加行，避免输出控制序列污染日志。
-  const progressMode = progressOption?.mode ?? 'tty-only'
+  const progressMode = progressOption?.mode ?? 'no'
   const progressStream = process.stderr
   const progressStreamHasTty = Boolean(progressStream.isTTY)
   const progressEnabled =
@@ -573,7 +573,7 @@ type ProgressMode = 'tty-only' | 'yes' | 'no'
 
 function parseProgressOption(value?: boolean | string): ProgressOption {
   if (value === undefined) {
-    return { mode: 'tty-only' }
+    return { mode: 'no' }
   }
 
   if (value === true) {
@@ -589,7 +589,7 @@ function parseProgressOption(value?: boolean | string): ProgressOption {
     throw new Error(`Unsupported progress mode: ${value}. Use "tty-only", "yes", or "no".`)
   }
 
-  return { mode: 'tty-only' }
+  return { mode: 'no' }
 }
 
 type JsonSeverity = 'error' | 'warning' | 'optimizing'
@@ -696,7 +696,7 @@ program
   .option('--tsconfig <path>', '自定义 tsconfig 路径 / Custom tsconfig path')
   .option(
     '--progress [mode]',
-    '进度显示模式 tty-only/yes/no（默认 tty-only，输出到 stderr） / Progress mode tty-only/yes/no (default tty-only, outputs to stderr)'
+    '进度显示模式 tty-only/yes/no（默认 no，输出到 stderr） / Progress mode tty-only/yes/no (default no, outputs to stderr)'
   )
   .option('--stdin', '从标准输入读取扫描路径 / Read file paths from STDIN')
   .parse(process.argv.filter((arg) => arg !== '--'))
