@@ -32,6 +32,14 @@
 - **[auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd)**: A lightning-fast SWC-based CLI focused on automated reviews, CI integration, and static code scanning.
 - **[auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules)**: A developer-facing rule SDK with tag-based grouping, internationalized messaging, and support for publishing team-specific rules.
 
+## Install
+
+```bash
+pnpm add -D auto-cr-cmd
+# or
+npm i -D auto-cr-cmd
+```
+
 ## Quick Start
 
 ```bash
@@ -40,25 +48,38 @@ npx auto-cr-cmd --language en [path-to-your-code]
 
 Common flags:
 
-- `--language <zh|en>`: Switch CLI output language (defaults to auto-detection).
+- `--language <zh|en>`: Switch CLI output language (defaults to `LANG`, falls back to `zh`).
 - `--rule-dir <directory>`: Load additional custom rules from a directory or package.
 - `--output <text|json>`: Choose between human-friendly text logs or structured JSON results (defaults to `text`).
 - `--progress [tty-only|yes|no]`: Progress mode (text output only, default `no`); output goes to `stderr`.
+- `--stdin`: Read scan targets from STDIN (auto-detected when piped; supports newline or NUL).
 - `--config <path>`: Point to a `.autocrrc.json` or `.autocrrc.js` file to enable/disable rules.
 - `--ignore-path <path>`: Point to a `.autocrignore.json` or `.autocrignore.js` file to exclude files/directories from scanning.
 - `--tsconfig <path>`: Use a custom `tsconfig.json` (defaults to `<cwd>/tsconfig.json`).
 - `--help`: Display the full command reference.
 
+Notes:
+
+- Scans `.ts` / `.tsx` / `.js` / `.jsx` only; `.d.ts` files are skipped.
+- Directory scans skip `node_modules` by default.
+- Text output is written to `stderr`; JSON output goes to `stdout` for scripting.
+
+Read paths from STDIN:
+
+```bash
+git diff --name-only -z | npx auto-cr-cmd --stdin --output json
+```
+
 Sample output:
 
 ```text
-[auto-cr] [warning] /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:2 Import path "../../../../shared/deep/utils" must not exceed max depth 2
+[auto-cr] [warning] /path/to/project/examples/noDeepRelativeImports/app/features/admin/pages/dashboard.ts:2 Import path "../../../../shared/deep/utils" must not exceed max depth 2
   rule: no-deep-relative-imports (Base)
   code: ../../../../shared/deep/utils
   suggestion:
     - Use a path alias (for example: @shared/deep/utils).
     - Create an index file at a higher level to re-export the module and shorten the import.
-[auto-cr] [warning] /Volumes/Wei/Codes/github/auto-cr/examples/src/app/features/admin/pages/dashboard.ts:3 Import ../../consts/index is not allowed. Import the concrete file instead.
+[auto-cr] [warning] /path/to/project/examples/noDeepRelativeImports/app/features/admin/pages/dashboard.ts:3 Import ../../consts/index is not allowed. Import the concrete file instead.
   rule: no-index-import (untagged)
 
 ✔  Code scan complete, scanned 3 files: 0 with errors, 1 with warnings, 0 with optimizing hints! 
@@ -109,6 +130,11 @@ npx auto-cr-cmd --output json -- ./src | jq
 }
 ```
 
+## Exit Codes
+
+- `0`: No error-level violations, or no matching files.
+- `1`: Error-level violations found, or a fatal scan error occurred.
+
 ## Configuration (.autocrrc)
 
 - Place `.autocrrc.json` or `.autocrrc.js` in your repo root (search order as listed). Use `--config <path>` to point elsewhere.
@@ -148,6 +174,12 @@ module.exports = {
   ]
 }
 ```
+
+## Docs
+
+- [Configuration & ignore](./docs/config.md)
+- [Rule: no-deep-relative-imports](./docs/no-deep-relative-imports.md)
+- [Rule: no-swallowed-errors](./docs/no-swallowed-errors.md)
 
 ## Writing Custom Rules
 
@@ -209,7 +241,7 @@ module.exports = { rules: [ruleA, ruleB] }
 
 ```bash
 cd examples
-npx auto-cr-cmd -l zh -r ./custom-rules/rules -- ./custom-rules/demo
+npx auto-cr-cmd -l en -r ./custom-rules/rules -- ./custom-rules/demo
 ```
 
 ## Project Layout
@@ -221,8 +253,13 @@ packages/
 scripts/
   bump-version.mjs # Keep both package versions aligned
 examples/
-  custom-rules     # Custom rule samples
-  src              # Example that triggers the base rule
+  custom-rules           # Custom rule samples
+  noDeepRelativeImports  # Example for deep relative imports
+  noCircularDependencies # Example for circular deps
+  noSwallowedErrors      # Example for swallowed errors
+  noCatastrophicRegex    # Example for regex backtracking
+  noDeepCloneInLoop      # Example for deep clone in loops
+  noN2ArrayLookup        # Example for O(n^2) lookups
 ```
 
 Essential scripts:
@@ -245,3 +282,5 @@ We welcome contributions through Issues or Pull Requests. Please read:
 ---
 
 Auto CR © [2025] [dengfengwang]. Licensed under the [MIT License](https://github.com/wangweiwei/auto-cr/blob/main/LICENSE)
+
+AI/agents notes: see [AGENTS.md](./AGENTS.md), [SKILL.md](./SKILL.md).

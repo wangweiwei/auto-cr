@@ -32,6 +32,14 @@
 - **[auto-cr-cmd](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-cmd)**：基于 SWC 的极速命令行工具，聚焦自动化代码审查、CI 集成与静态代码扫描。
 - **[auto-cr-rules](https://github.com/wangweiwei/auto-cr/tree/main/packages/auto-cr-rules)**：面向开发者的规则 SDK，支持多标签分类、国际化提示与团队定制规则发布。
 
+## 安装
+
+```bash
+pnpm add -D auto-cr-cmd
+# or
+npm i -D auto-cr-cmd
+```
+
 ## 快速开始
 
 ```bash
@@ -40,25 +48,38 @@ npx auto-cr-cmd --language zh [需要扫描的代码目录]
 
 常用参数：
 
-- `--language <zh|en>`：切换 CLI 输出语言（默认为自动检测）。
+- `--language <zh|en>`：切换 CLI 输出语言（默认读取 `LANG`，缺省回退为 `zh`）。
 - `--rule-dir <directory>`：加载额外的自定义规则目录或包。
 - `--output <text|json>`：选择输出格式，`text` 为友好的终端日志，`json` 用于集成脚本（默认为 `text`）。
-- `--progress [tty-only|yes|no]`：进度显示模式（仅 text 输出，默认 `tty-only`），输出到 stderr。
+- `--progress [tty-only|yes|no]`：进度显示模式（仅 text 输出，默认 `no`），输出到 stderr。
+- `--stdin`：从标准输入读取扫描路径（管道输入时自动读取；支持换行或 NUL 分隔）。
 - `--config <path>`：指定 `.autocrrc.json` 或 `.autocrrc.js` 配置文件路径，用于开启/关闭规则。
 - `--ignore-path <path>`：指定 `.autocrignore.json` 或 `.autocrignore.js` 忽略文件路径，用于排除扫描。
 - `--tsconfig <path>`：指定自定义 `tsconfig.json` 路径（默认读取 `<cwd>/tsconfig.json`）。
 - `--help`：查看完整命令说明。
 
+说明：
+
+- 仅扫描 `.ts` / `.tsx` / `.js` / `.jsx`；`.d.ts` 会被跳过。
+- 目录扫描默认跳过 `node_modules`。
+- text 输出写入 `stderr`；JSON 输出写入 `stdout`，便于脚本解析。
+
+从 STDIN 读取路径：
+
+```bash
+git diff --name-only -z | npx auto-cr-cmd --stdin --output json
+```
+
 示例输出：
 
 ```text
-[auto-cr] [warning] .../dashboard.ts:2 导入路径 "../../../../shared/deep/utils"，不能超过最大层级2
+[auto-cr] [warning] /path/to/project/examples/noDeepRelativeImports/app/features/admin/pages/dashboard.ts:2 导入路径 "../../../../shared/deep/utils"，不能超过最大层级2
   rule: no-deep-relative-imports (基础规则)
   code: ../../../../shared/deep/utils
   suggestion:
     - 使用别名路径（如 @shared/deep/utils）。
     - 或在上层聚合导出，避免过深相对路径。
-[auto-cr] [warning] .../dashboard.ts:3 禁止直接导入 ../../consts/index，请改用具体文件
+[auto-cr] [warning] /path/to/project/examples/noDeepRelativeImports/app/features/admin/pages/dashboard.ts:3 禁止直接导入 ../../consts/index，请改用具体文件
   rule: no-index-import (未定义)
 
 ✔  代码扫描完成，本次共扫描3个文件，其中0个文件存在错误，1个文件存在警告，0个文件存在优化建议！
@@ -109,6 +130,11 @@ npx auto-cr-cmd --output json -- ./src | jq
 }
 ```
 
+## 退出码
+
+- `0`：无 error 级别违规，或没有匹配到文件。
+- `1`：发现 error 级别违规，或扫描出现致命错误。
+
 ## 配置（.autocrrc）
 
 - 在仓库根目录放置 `.autocrrc.json` 或 `.autocrrc.js`（按此顺序查找）；如需放在其他位置，可通过 `--config <path>` 指定。
@@ -158,6 +184,12 @@ module.exports = {
   }
 }
 ```
+
+## 文档索引
+
+- [配置与忽略](./docs/config.md)
+- [规则：no-deep-relative-imports](./docs/no-deep-relative-imports.md)
+- [规则：no-swallowed-errors](./docs/no-swallowed-errors.md)
 
 ## 编写自定义规则
 
@@ -219,7 +251,7 @@ module.exports = { rules: [ruleA, ruleB] }
 
 ```bash
 cd examples
-npx auto-cr-cmd -l en -r ./custom-rules/rules -- ./custom-rules/demo
+npx auto-cr-cmd -l zh -r ./custom-rules/rules -- ./custom-rules/demo
 ```
 
 ## 项目结构
@@ -231,8 +263,13 @@ packages/
 scripts/
   bump-version.mjs # 统一递增两个包的版本号
 examples/
-  custom-rules     # 自定义规则
-  src              # 触发基础规则的例子
+  custom-rules           # 自定义规则
+  noDeepRelativeImports  # 深层相对导入示例
+  noCircularDependencies # 循环依赖示例
+  noSwallowedErrors      # 吞掉错误示例
+  noCatastrophicRegex    # 灾难性回溯示例
+  noDeepCloneInLoop      # 循环深拷贝示例
+  noN2ArrayLookup        # O(n^2) 查询示例
 ```
 
 核心脚本：
@@ -255,3 +292,5 @@ examples/
 ---
 
 Auto CR © [2025] [dengfengwang]。许可协议： [MIT License](https://github.com/wangweiwei/auto-cr/blob/main/LICENSE)
+
+AI/agents 说明见 [AGENTS.md](./AGENTS.md)、[SKILL.md](./SKILL.md)（中文见 [AGENTS.zh-CN.md](./AGENTS.zh-CN.md)、[SKILL.zh-CN.md](./SKILL.zh-CN.md)）。
