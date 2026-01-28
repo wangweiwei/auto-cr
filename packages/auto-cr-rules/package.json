@@ -1,6 +1,6 @@
 {
   "name": "auto-cr-rules",
-  "version": "2.0.109",
+  "version": "2.0.110",
   "description": "Extensible static analysis rule set for the auto-cr automated code review toolkit",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
