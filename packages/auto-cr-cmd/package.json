@@ -48,7 +48,7 @@
     "@swc/core": "^1.15.11",
     "@swc/wasm": "^1.15.10",
     "auto-cr-rules": "workspace:*",
-    "commander": "^14.0.2",
+    "commander": "^14.0.3",
     "consola": "^3.4.2",
     "jsonc-parser": "^3.3.1",
     "picomatch": "^4.0.3"
