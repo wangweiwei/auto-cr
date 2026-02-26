@@ -126,8 +126,8 @@ function isJsxEnabled(option?: string): boolean {
   return normalized !== 'none'
 }
 
-function createTsParserConfig(extension: string, options: TsCompilerOptions | undefined, enableDecorators: boolean): TsParserConfig {
-  const shouldEnableJsx = extension === '.tsx' || (extension === '.ts' && isJsxEnabled(options?.jsx))
+function createTsParserConfig(extension: string, enableDecorators: boolean): TsParserConfig {
+  const shouldEnableJsx = extension === '.tsx'
 
   return {
     syntax: 'typescript',
@@ -161,11 +161,11 @@ export function loadParseOptions(filePath: string): ParseOptions {
   let parserConfig: TsParserConfig | EsParserConfig
 
   if (extension === '.ts' || extension === '.tsx') {
-    parserConfig = createTsParserConfig(extension, compilerOptions, enableDecorators)
+    parserConfig = createTsParserConfig(extension, enableDecorators)
   } else if (extension === '.js' || extension === '.jsx') {
     parserConfig = createEsParserConfig(extension, compilerOptions, enableDecorators)
   } else {
-    parserConfig = createTsParserConfig('.ts', compilerOptions, enableDecorators)
+    parserConfig = createTsParserConfig('.ts', enableDecorators)
   }
 
   const options: ParseOptions = {
