@@ -103,6 +103,7 @@ export interface RuleMessages {
   swallowedError(): string
   circularDependency(params: { chain: string }): string
   unresolvedImport(params: { value: string }): string
+  noCrossPackagePrivateImports(params: { value: string; packageName: string }): string
   noCatastrophicRegex(params: { pattern: string }): string
   noDeepCloneInLoop(): string
   noN2ArrayLookup(params: { method: string }): string

@@ -636,6 +636,10 @@ const resolveExportsTarget = (exportsField: unknown, subpath: string): string | 
     return null
   }
 
+  if (subpath !== '.') {
+    return null
+  }
+
   return resolveConditionalTarget(exportsObj)
 }
 
