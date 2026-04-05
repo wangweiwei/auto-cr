@@ -566,8 +566,8 @@ const applyPathMapping = (target: string, wildcard: string): string => {
     return target
   }
 
-  // Insert the captured segment verbatim so characters like `$` are not
-  // interpreted as replacement tokens by String.prototype.replace.
+  // 直接按字面量插入捕获到的片段，避免 `$` 之类的字符
+  // 被 String.prototype.replace 当成替换标记解释。
   return `${target.slice(0, starIndex)}${wildcard}${target.slice(starIndex + 1)}`
 }
 
