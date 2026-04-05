@@ -11,6 +11,7 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noCrossPackagePrivateImports: ({ value, packageName }) =>
       `跨包导入 "${value}" 直接访问了工作区包 "${packageName}" 的私有实现，请改用公开导出入口。`,
     noCatastrophicRegex: ({ pattern }) => `热路径正则包含嵌套的无限量词，可能引发灾难性回溯: ${pattern}`,
+    noBlockingApiInHotPath: ({ api }) => `热路径中调用阻塞式 API ${api}，可能反复阻塞事件循环。`,
     noDeepCloneInLoop: () => '热路径中使用深拷贝（structuredClone 或 JSON.parse(JSON.stringify)），可能造成明显开销。',
     noN2ArrayLookup: ({ method }) => `热路径中使用线性查找方法 ${method}，可能导致 O(n^2) 访问。`,
   },
@@ -24,6 +25,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Cross-package import "${value}" reaches into the private implementation of workspace package "${packageName}". Import from a public entry instead.`,
     noCatastrophicRegex: ({ pattern }) =>
       `Regex in a hot path contains nested unbounded quantifiers and may trigger catastrophic backtracking: ${pattern}`,
+    noBlockingApiInHotPath: ({ api }) =>
+      `Blocking API ${api} is called in a hot path and may repeatedly block the event loop.`,
     noDeepCloneInLoop: () => 'Deep cloning in a hot path (structuredClone or JSON.parse(JSON.stringify)) may be costly.',
     noN2ArrayLookup: ({ method }) =>
       `Linear lookup method ${method} is used in a hot path and may cause O(n^2) access.`,

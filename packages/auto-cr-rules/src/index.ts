@@ -28,6 +28,7 @@ export {
   noSwallowedErrors,
   noCrossPackagePrivateImports,
   noCatastrophicRegex,
+  noBlockingApiInHotPath,
   noDeepCloneInLoop,
   noN2ArrayLookup,
 } from './rules'

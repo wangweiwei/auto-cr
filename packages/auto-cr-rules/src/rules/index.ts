@@ -4,6 +4,7 @@ import { noCircularDependencies } from './noCircularDependencies'
 import { noSwallowedErrors } from './noSwallowedErrors'
 import { noCrossPackagePrivateImports } from './noCrossPackagePrivateImports'
 import { noCatastrophicRegex } from './noCatastrophicRegex'
+import { noBlockingApiInHotPath } from './noBlockingApiInHotPath'
 import { noDeepCloneInLoop } from './noDeepCloneInLoop'
 import { noN2ArrayLookup } from './noN2ArrayLookup'
 
@@ -14,6 +15,7 @@ export const builtinRules: Rule[] = [
   noSwallowedErrors,
   noCrossPackagePrivateImports,
   noCatastrophicRegex,
+  noBlockingApiInHotPath,
   noDeepCloneInLoop,
   noN2ArrayLookup,
 ]
@@ -24,6 +26,7 @@ export {
   noSwallowedErrors,
   noCrossPackagePrivateImports,
   noCatastrophicRegex,
+  noBlockingApiInHotPath,
   noDeepCloneInLoop,
   noN2ArrayLookup,
 }
