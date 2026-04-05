@@ -561,11 +561,14 @@ const matchPathPattern = (pattern: string, specifier: string): { matched: boolea
 }
 
 const applyPathMapping = (target: string, wildcard: string): string => {
-  if (!target.includes('*')) {
+  const starIndex = target.indexOf('*')
+  if (starIndex < 0) {
     return target
   }
 
-  return target.replace('*', wildcard)
+  // Insert the captured segment verbatim so characters like `$` are not
+  // interpreted as replacement tokens by String.prototype.replace.
+  return `${target.slice(0, starIndex)}${wildcard}${target.slice(starIndex + 1)}`
 }
 
 const resolveWorkspacePackageTarget = (pkg: WorkspacePackage, subpath: string, root: string): string | null => {
