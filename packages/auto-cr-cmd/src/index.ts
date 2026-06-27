@@ -474,6 +474,8 @@ async function run(
       const initData: WorkerInitData = {
         ruleDir,
         ruleSettings: rcConfig.rules,
+        ruleOptions: rcConfig.ruleOptions,
+        configDir: rcConfig.path ? path.dirname(rcConfig.path) : process.cwd(),
         language: getLanguage(),
         tsconfigPath: resolvedTsconfigPath,
       }
@@ -516,7 +518,15 @@ async function run(
             logRecord(record)
           }
 
-          summary = await analyzeFile(file, rules, analysisFormat, logForFile, createRuleContext)
+          summary = await analyzeFile(
+            file,
+            rules,
+            analysisFormat,
+            logForFile,
+            createRuleContext,
+            rcConfig.ruleOptions,
+            rcConfig.path ? path.dirname(rcConfig.path) : process.cwd()
+          )
           fileSummaryCache.set(file, { summary, logs: capturedLogs })
         }
 

@@ -26,6 +26,7 @@ export {
   noDeepRelativeImports,
   noCircularDependencies,
   noSwallowedErrors,
+  noLayerViolations,
   noCrossPackagePrivateImports,
   noCatastrophicRegex,
   noBlockingApiInHotPath,

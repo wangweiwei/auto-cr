@@ -20,11 +20,13 @@ export type RuleSettingInput =
 
 export interface AutoCrRcConfig {
   rules?: Record<string, RuleSettingInput>
+  ruleOptions?: Record<string, unknown>
 }
 
 export interface LoadedAutoCrRc {
   path?: string
   rules?: Record<string, RuleSettingInput>
+  ruleOptions?: Record<string, unknown>
   warnings: string[]
 }
 
@@ -57,9 +59,15 @@ export function loadAutoCrRc(configPath?: string): LoadedAutoCrRc {
       return { warnings }
     }
 
+    if (config.ruleOptions !== undefined && !isRecord(config.ruleOptions)) {
+      warnings.push(t.autocrrcInvalidRuleOptionsField({ path: resolvedPath }))
+      return { warnings }
+    }
+
     return {
       path: resolvedPath,
       rules: config.rules as Record<string, RuleSettingInput> | undefined,
+      ruleOptions: config.ruleOptions as Record<string, unknown> | undefined,
       warnings,
     }
   } catch (error) {
@@ -75,22 +83,23 @@ export function applyRuleConfig(
   ruleSettings: Record<string, RuleSettingInput> | undefined,
   onWarning: (message: string) => void
 ): Rule[] {
-  if (!ruleSettings || Object.keys(ruleSettings).length === 0) {
-    return rules
-  }
-
   const t = getTranslator()
+  const settings = ruleSettings ?? {}
   const configured: Rule[] = []
 
   for (const rule of rules) {
-    const hasSetting = Object.prototype.hasOwnProperty.call(ruleSettings, rule.name)
+    const hasSetting = Object.prototype.hasOwnProperty.call(settings, rule.name)
 
     if (!hasSetting) {
+      if (rule.enabledByDefault === false) {
+        continue
+      }
+
       configured.push(rule)
       continue
     }
 
-    const rawSetting = ruleSettings[rule.name]
+    const rawSetting = settings[rule.name]
     const normalized = normalizeRuleSetting(rawSetting)
 
     if (normalized === 'off') {
@@ -99,7 +108,9 @@ export function applyRuleConfig(
 
     if (normalized === null) {
       onWarning(t.autocrrcInvalidRuleSetting({ ruleName: rule.name, value: stringifyValue(rawSetting) }))
-      configured.push(rule)
+      if (rule.enabledByDefault !== false) {
+        configured.push(rule)
+      }
       continue
     }
 

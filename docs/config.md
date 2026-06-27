@@ -1,7 +1,7 @@
 # 配置：.autocrrc（启用/关闭规则）
 
 ## 1. 作用
-- 通过仓库根目录下的 `.autocrrc.json/.js` 统一开启、关闭或调整规则严重级别，覆盖内置与自定义规则。
+- 通过仓库根目录下的 `.autocrrc.json/.js` 统一开启、关闭或调整规则严重级别，并可为指定规则传入配置对象，覆盖内置与自定义规则。
 
 ## 2. 搜索顺序与 CLI 参数
 - 默认在 `process.cwd()` 下按顺序查找：`.autocrrc.json` → `.autocrrc.js`。
@@ -13,10 +13,16 @@
 {
   "rules": {
     "<rule-id>": "<setting>"
+  },
+  "ruleOptions": {
+    "<rule-id>": {
+      "...": "..."
+    }
   }
 }
 ```
 - `rules`：键为规则 ID（如 `no-deep-relative-imports`），值为严重级别或开关。
+- `ruleOptions`：键为规则 ID，值为该规则自己的配置对象。路径类配置默认相对 `.autocrrc*` 所在目录计算。
 
 ### 3.1 规则值支持的写法
 - 关闭：`"off"` | `false` | `0`
@@ -33,7 +39,17 @@
 {
   "rules": {
     "no-deep-relative-imports": "error",
-    "no-swallowed-errors": "off"
+    "no-swallowed-errors": "off",
+    "no-layer-violations": "off"
+  },
+  "ruleOptions": {
+    "no-layer-violations": {
+      "layers": [
+        { "name": "app", "paths": ["src/app/**"], "imports": ["@app/**"], "allow": ["features", "shared"] },
+        { "name": "features", "paths": ["src/features/**"], "imports": ["@features/**"], "allow": ["shared"] },
+        { "name": "shared", "paths": ["src/shared/**"], "imports": ["@shared/**"], "allow": [] }
+      ]
+    }
   }
 }
 ```
@@ -44,13 +60,24 @@
 module.exports = {
   rules: {
     'no-swallowed-errors': 'warning', // 覆盖为警告
-    'no-deep-relative-imports': true  // 保持默认严重级别
+    'no-deep-relative-imports': true, // 保持默认严重级别
+    'no-layer-violations': 'off' // 保持关闭；开启时改为 warning/error
+  },
+  ruleOptions: {
+    'no-layer-violations': {
+      layers: [
+        { name: 'app', paths: ['src/app/**'], imports: ['@app/**'], allow: ['features', 'shared'] },
+        { name: 'features', paths: ['src/features/**'], imports: ['@features/**'], allow: ['shared'] },
+        { name: 'shared', paths: ['src/shared/**'], imports: ['@shared/**'], allow: [] },
+      ],
+    },
   }
 }
 ```
 
 ## 5. 行为说明
-- 未写明的规则沿用自身默认严重级别。
+- 未写明的规则沿用自身默认严重级别与默认启用状态。
+- 默认关闭的规则（例如 `no-layer-violations`）即使配置了 `ruleOptions`，也只有设为 `warning` 或 `error` 时才会开启。
 - 当配置关闭所有规则时，扫描将直接跳过并提示警告。
 - 配置文件不存在、无法解析或字段类型不正确时，会输出警告并继续使用默认规则设置。
 

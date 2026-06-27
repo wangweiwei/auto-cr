@@ -103,6 +103,7 @@ export interface RuleMessages {
   swallowedError(): string
   circularDependency(params: { chain: string }): string
   unresolvedImport(params: { value: string }): string
+  noLayerViolations(params: { fromLayer: string; toLayer: string; value: string }): string
   noCrossPackagePrivateImports(params: { value: string; packageName: string }): string
   noCatastrophicRegex(params: { pattern: string }): string
   noBlockingApiInHotPath(params: { api: string }): string
@@ -121,6 +122,7 @@ export interface RuleHelpers {
 // 规则执行上下文：包含 AST/源码/语言/工具方法。
 export interface RuleContext {
   readonly filePath: string
+  readonly configDir?: string
   readonly source: string
   readonly language: Language
   readonly reporter: RuleReporter
@@ -129,18 +131,21 @@ export interface RuleContext {
   readonly sourceIndex: SourceIndex
   readonly helpers: RuleHelpers
   readonly messages: RuleMessages
+  readonly options?: unknown
 }
 
 // 规则元数据（用于 tag/严重级别等）。
 export interface RuleMetadata {
   tag?: string
   severity?: RuleSeverity
+  enabledByDefault?: boolean
 }
 
 export interface Rule {
   name: string
   tag?: string
   severity?: RuleSeverity
+  enabledByDefault?: boolean
   run(context: RuleContext): void | Promise<void>
 }
 
@@ -169,6 +174,7 @@ export function defineRule(
     name,
     ...metadata,
     severity: metadata.severity ?? RuleSeverity.Error,
+    enabledByDefault: metadata.enabledByDefault ?? true,
     run: runner,
   }
 }
@@ -181,6 +187,8 @@ export const isRule = (value: unknown): value is Rule => {
     typeof (value as { run?: unknown }).run === 'function' &&
     (typeof (value as { tag?: unknown }).tag === 'undefined' ||
       typeof (value as { tag?: unknown }).tag === 'string') &&
+    (typeof (value as { enabledByDefault?: unknown }).enabledByDefault === 'undefined' ||
+      typeof (value as { enabledByDefault?: unknown }).enabledByDefault === 'boolean') &&
     (typeof (value as { severity?: unknown }).severity === 'undefined' ||
       (typeof (value as { severity?: unknown }).severity === 'string' &&
         Object.values(RuleSeverity).includes((value as { severity?: unknown }).severity as RuleSeverity)))
@@ -190,6 +198,7 @@ export const isRule = (value: unknown): value is Rule => {
 export const toRule = (value: unknown, origin: string): Rule | null => {
   if (isRule(value)) {
     return {
+      enabledByDefault: value.enabledByDefault ?? true,
       severity: value.severity ?? RuleSeverity.Error,
       ...value,
     }
@@ -199,6 +208,7 @@ export const toRule = (value: unknown, origin: string): Rule | null => {
     const fn = value as (context: RuleContext) => void | Promise<void>
     return {
       name: fn.name || origin,
+      enabledByDefault: true,
       severity: RuleSeverity.Error,
       run: fn,
     }

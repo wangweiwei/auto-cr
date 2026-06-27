@@ -5,6 +5,8 @@ import type { AnalyzeFileSummary, Notification } from './types'
 export interface WorkerInitData {
   ruleDir?: string
   ruleSettings?: Record<string, RuleSettingInput>
+  ruleOptions?: Record<string, unknown>
+  configDir?: string
   language: string
   tsconfigPath?: string
 }

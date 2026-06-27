@@ -22,7 +22,7 @@
 
 ## 特性亮点（自动化代码审查 & 静态代码分析）
 
-- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`。
+- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`。
 - **可扩展 SDK**：`auto-cr-rules` 暴露 `defineRule`、`helpers.imports` 等工具，降低编写 TypeScript / JavaScript 自定义规则的复杂度。
 - **工作区管理**：使用 pnpm workspace 同时管理 CLI 与规则包，一次构建即可验证完整流程。
 - **发布友好**：内置版本递增脚本与 npm 发布命令，保持两个包的版本同步。
@@ -138,7 +138,9 @@ npx auto-cr-cmd --output json -- ./src | jq
 ## 配置（.autocrrc）
 
 - 在仓库根目录放置 `.autocrrc.json` 或 `.autocrrc.js`（按此顺序查找）；如需放在其他位置，可通过 `--config <path>` 指定。
-- `rules` 支持的值：`off | warning | error | optimizing | true/false | 0/1/2`，未写明的规则沿用默认严重级别。
+- `rules` 支持的值：`off | warning | error | optimizing | true/false | 0/1/2`，未写明的规则沿用默认严重级别与默认启用状态。
+- `ruleOptions` 可为指定规则传递配置对象，键名需与规则名一致。
+- 对于默认不启用的规则，例如 `no-layer-violations`，除非显式设为 `warning` 或 `error`，否则保持关闭。
 
 ```jsonc
 // .autocrrc.json
@@ -146,7 +148,17 @@ npx auto-cr-cmd --output json -- ./src | jq
   "rules": {
     "no-deep-relative-imports": "error",
     "no-circular-dependencies": "warning",
-    "no-swallowed-errors": "off"
+    "no-swallowed-errors": "off",
+    "no-layer-violations": "off"
+  },
+  "ruleOptions": {
+    "no-layer-violations": {
+      "layers": [
+        { "name": "app", "paths": ["src/app/**"], "imports": ["@app/**"], "allow": ["features", "shared"] },
+        { "name": "features", "paths": ["src/features/**"], "imports": ["@features/**"], "allow": ["shared"] },
+        { "name": "shared", "paths": ["src/shared/**"], "imports": ["@shared/**"], "allow": [] }
+      ]
+    }
   }
 }
 ```
@@ -189,6 +201,7 @@ module.exports = {
 
 - [配置与忽略](./docs/config.md)
 - [规则：no-deep-relative-imports](./docs/no-deep-relative-imports.md)
+- [规则：no-layer-violations](./docs/no-layer-violations.md)
 - [规则：no-cross-package-private-imports](./docs/no-cross-package-private-imports.md)
 - [规则：no-blocking-api-in-hot-path](./docs/no-blocking-api-in-hot-path.md)
 - [规则：no-swallowed-errors](./docs/no-swallowed-errors.md)
@@ -236,6 +249,7 @@ module.exports = defineRule('no-index-import', ({ helpers, language }) => {
 - `helpers.imports`：统一收集的 `import` / `require` / 动态导入引用。
 - `helpers.isRelativePath`、`helpers.relativeDepth`：常见路径判断工具。
 - `helpers.reportViolation(message, span?)`：统一的问题上报接口。
+- `options`：来自 `.autocrrc` `ruleOptions[ruleName]` 的规则级配置。
 - `language` 与 `reporter`：可获取当前语言和底层 Reporter API。
 
 也可以一次导出多个规则：
@@ -269,6 +283,7 @@ examples/
   noDeepRelativeImports  # 深层相对导入示例
   noCircularDependencies # 循环依赖示例
   noSwallowedErrors      # 吞掉错误示例
+  noLayerViolations      # 分层依赖示例
   noCrossPackagePrivateImports # 跨包私有导入示例
   noBlockingApiInHotPath # 热路径阻塞 API 示例
   noCatastrophicRegex    # 灾难性回溯示例

@@ -8,6 +8,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     circularDependency: ({ chain }) => `检测到循环依赖: ${chain}`,
     unresolvedImport: ({ value }) =>
       `无法解析导入 "${value}"，请检查 tsconfig paths/baseUrl/rootDirs 或 package.json exports。`,
+    noLayerViolations: ({ fromLayer, toLayer, value }) =>
+      `层级 "${fromLayer}" 不允许依赖层级 "${toLayer}"，请检查导入 "${value}"。`,
     noCrossPackagePrivateImports: ({ value, packageName }) =>
       `跨包导入 "${value}" 直接访问了工作区包 "${packageName}" 的私有实现，请改用公开导出入口。`,
     noCatastrophicRegex: ({ pattern }) => `热路径正则包含嵌套的无限量词，可能引发灾难性回溯: ${pattern}`,
@@ -21,6 +23,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     circularDependency: ({ chain }) => `Circular dependency detected: ${chain}`,
     unresolvedImport: ({ value }) =>
       `Unable to resolve import "${value}". Check tsconfig paths/baseUrl/rootDirs or package.json exports.`,
+    noLayerViolations: ({ fromLayer, toLayer, value }) =>
+      `Layer "${fromLayer}" must not depend on layer "${toLayer}". Check import "${value}".`,
     noCrossPackagePrivateImports: ({ value, packageName }) =>
       `Cross-package import "${value}" reaches into the private implementation of workspace package "${packageName}". Import from a public entry instead.`,
     noCatastrophicRegex: ({ pattern }) =>

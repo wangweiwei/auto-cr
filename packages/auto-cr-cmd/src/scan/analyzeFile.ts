@@ -29,6 +29,8 @@ export async function analyzeFile(
   format: ReporterFormat,
   log: Logger,
   createRuleContext: CreateRuleContext,
+  ruleOptions?: Record<string, unknown>,
+  configDir?: string,
   reporterHooks?: ReporterHooks
 ): Promise<AnalyzeFileSummary> {
   const source = readFile(file)
@@ -109,8 +111,10 @@ export async function analyzeFile(
 
       const context: RuleContext = {
         ...baseContext,
+        configDir,
         reporter: scopedReporter,
         helpers,
+        options: ruleOptions?.[rule.name],
       }
 
       await rule.run(context)

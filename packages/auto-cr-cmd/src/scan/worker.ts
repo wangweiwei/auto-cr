@@ -67,7 +67,15 @@ port.on('message', async (message: WorkerInboundMessage) => {
 
   try {
     // format 固定为 json，确保 worker 不直接输出。
-    const summary = await analyzeFile(filePath, rules, 'json', log, createRuleContext)
+    const summary = await analyzeFile(
+      filePath,
+      rules,
+      'json',
+      log,
+      createRuleContext,
+      initData.ruleOptions,
+      initData.configDir
+    )
     const payload: WorkerOutboundMessage = {
       type: 'result',
       id,

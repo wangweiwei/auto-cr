@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "no-layer-violations": "warning"
+  },
+  "ruleOptions": {
+    "no-layer-violations": {
+      "layers": [
+        {
+          "name": "app",
+          "paths": ["src/app/**"],
+          "imports": ["@app/**"],
+          "allow": ["features", "shared"]
+        },
+        {
+          "name": "features",
+          "paths": ["src/features/**"],
+          "imports": ["@features/**"],
+          "allow": ["shared"]
+        },
+        {
+          "name": "shared",
+          "paths": ["src/shared/**"],
+          "imports": ["@shared/**"],
+          "allow": []
+        }
+      ]
+    }
+  }
+}

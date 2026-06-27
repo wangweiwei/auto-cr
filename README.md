@@ -22,7 +22,7 @@
 
 ## Feature Highlights (Automated Code Review & Static Analysis)
 
-- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, and `no-n2-array-lookup`.
+- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, and `no-n2-array-lookup`.
 - **Extensible SDK**: `auto-cr-rules` exposes helpers like `defineRule` and `helpers.imports`, reducing the friction of authoring custom TypeScript / JavaScript rules.
 - **Workspace Friendly**: Manage both the CLI and rule package via pnpm workspaces and validate the full pipeline with a single build.
 - **Publishing Toolkit**: Version bump scripts and npm publish commands keep both packages in sync.
@@ -138,7 +138,9 @@ npx auto-cr-cmd --output json -- ./src | jq
 ## Configuration (.autocrrc)
 
 - Place `.autocrrc.json` or `.autocrrc.js` in your repo root (search order as listed). Use `--config <path>` to point elsewhere.
-- `rules` accepts `off | warning | error | optimizing | true/false | 0/1/2`; unspecified rules keep their default severity.
+- `rules` accepts `off | warning | error | optimizing | true/false | 0/1/2`; unspecified rules keep their default severity and default enablement.
+- `ruleOptions` can pass rule-specific configuration objects; each key should match a rule name.
+- Rules that are disabled by default, such as `no-layer-violations`, stay off unless explicitly set to `warning` or `error`.
 
 ```jsonc
 // .autocrrc.json
@@ -146,7 +148,17 @@ npx auto-cr-cmd --output json -- ./src | jq
   "rules": {
     "no-deep-relative-imports": "error",
     "no-circular-dependencies": "warning",
-    "no-swallowed-errors": "off"
+    "no-swallowed-errors": "off",
+    "no-layer-violations": "off"
+  },
+  "ruleOptions": {
+    "no-layer-violations": {
+      "layers": [
+        { "name": "app", "paths": ["src/app/**"], "imports": ["@app/**"], "allow": ["features", "shared"] },
+        { "name": "features", "paths": ["src/features/**"], "imports": ["@features/**"], "allow": ["shared"] },
+        { "name": "shared", "paths": ["src/shared/**"], "imports": ["@shared/**"], "allow": [] }
+      ]
+    }
   }
 }
 ```
@@ -179,6 +191,7 @@ module.exports = {
 
 - [Configuration & ignore](./docs/config.md)
 - [Rule: no-deep-relative-imports](./docs/no-deep-relative-imports.md)
+- [Rule: no-layer-violations](./docs/no-layer-violations.md)
 - [Rule: no-cross-package-private-imports](./docs/no-cross-package-private-imports.md)
 - [Rule: no-blocking-api-in-hot-path](./docs/no-blocking-api-in-hot-path.md)
 - [Rule: no-swallowed-errors](./docs/no-swallowed-errors.md)
@@ -226,6 +239,7 @@ module.exports = defineRule('no-index-import', ({ helpers, language }) => {
 - `helpers.imports`: Normalized `import` / `require` / dynamic import references.
 - `helpers.isRelativePath`, `helpers.relativeDepth`: Common path utilities.
 - `helpers.reportViolation(message, span?)`: Unified reporting API.
+- `options`: Rule-specific options passed from `.autocrrc` `ruleOptions[ruleName]`.
 - `language` and `reporter`: Access the active language and low-level reporter APIs.
 
 You can export multiple rules at once:
@@ -259,6 +273,7 @@ examples/
   noDeepRelativeImports  # Example for deep relative imports
   noCircularDependencies # Example for circular deps
   noSwallowedErrors      # Example for swallowed errors
+  noLayerViolations      # Example for layer dependency rules
   noCrossPackagePrivateImports # Example for cross-package private imports
   noBlockingApiInHotPath # Example for blocking APIs in hot paths
   noCatastrophicRegex    # Example for regex backtracking

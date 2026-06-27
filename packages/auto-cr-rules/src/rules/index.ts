@@ -2,6 +2,7 @@ import type { Rule } from '../types'
 import { noDeepRelativeImports } from './noDeepRelativeImports'
 import { noCircularDependencies } from './noCircularDependencies'
 import { noSwallowedErrors } from './noSwallowedErrors'
+import { noLayerViolations } from './noLayerViolations'
 import { noCrossPackagePrivateImports } from './noCrossPackagePrivateImports'
 import { noCatastrophicRegex } from './noCatastrophicRegex'
 import { noBlockingApiInHotPath } from './noBlockingApiInHotPath'
@@ -13,6 +14,7 @@ export const builtinRules: Rule[] = [
   noDeepRelativeImports,
   noCircularDependencies,
   noSwallowedErrors,
+  noLayerViolations,
   noCrossPackagePrivateImports,
   noCatastrophicRegex,
   noBlockingApiInHotPath,
@@ -24,6 +26,7 @@ export {
   noDeepRelativeImports,
   noCircularDependencies,
   noSwallowedErrors,
+  noLayerViolations,
   noCrossPackagePrivateImports,
   noCatastrophicRegex,
   noBlockingApiInHotPath,

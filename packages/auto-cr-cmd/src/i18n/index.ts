@@ -21,6 +21,7 @@ interface Translator {
   autocrrcLoadFailed(params: { path: string; error: string }): string
   autocrrcInvalidFormat(params: { path: string }): string
   autocrrcInvalidRulesField(params: { path: string }): string
+  autocrrcInvalidRuleOptionsField(params: { path: string }): string
   autocrrcInvalidRuleSetting(params: { ruleName: string; value: string }): string
   autocrrcAllRulesDisabled(): string
   autocrignorePathMissing(params: { path: string }): string
@@ -60,6 +61,7 @@ const translations = {
     autocrrcLoadFailed: ({ path, error }) => `读取 .autocrrc 配置失败 (${path}): ${error}`,
     autocrrcInvalidFormat: ({ path }) => `配置文件格式无效（需导出对象）: ${path}`,
     autocrrcInvalidRulesField: ({ path }) => `配置文件 rules 字段必须是对象: ${path}`,
+    autocrrcInvalidRuleOptionsField: ({ path }) => `配置文件 ruleOptions 字段必须是对象: ${path}`,
     autocrrcInvalidRuleSetting: ({ ruleName, value }) =>
       `规则 ${ruleName} 的配置值无效: ${value}。可选: off | warning | error | optimizing | true/false | 0/1/2`,
     autocrrcAllRulesDisabled: () => '配置已关闭所有规则，跳过扫描',
@@ -100,6 +102,7 @@ const translations = {
       const labels: Record<string, string> = {
         base: '基础规则',
         performance: '性能规则',
+        architecture: '架构规则',
         untagged: '未定义'
       }
       
@@ -127,6 +130,7 @@ const translations = {
     autocrrcLoadFailed: ({ path, error }) => `Failed to read .autocrrc config (${path}): ${error}`,
     autocrrcInvalidFormat: ({ path }) => `Invalid config format (should export an object): ${path}`,
     autocrrcInvalidRulesField: ({ path }) => `Config "rules" field must be an object: ${path}`,
+    autocrrcInvalidRuleOptionsField: ({ path }) => `Config "ruleOptions" field must be an object: ${path}`,
     autocrrcInvalidRuleSetting: ({ ruleName, value }) =>
       `Invalid setting for rule ${ruleName}: ${value}. Use off | warning | error | optimizing | true/false | 0/1/2`,
     autocrrcAllRulesDisabled: () => 'All rules are disabled by config; skipping scan',
@@ -167,6 +171,7 @@ const translations = {
       const labels: Record<string, string> = {
         base: 'Base Rules',
         performance: 'Performance Rules',
+        architecture: 'Architecture Rules',
         untagged: 'untagged'
       }
 
