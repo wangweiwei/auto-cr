@@ -45,8 +45,8 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@swc/core": "^1.15.11",
-    "@swc/wasm": "^1.15.13",
+    "@swc/core": "~1.15.24",
+    "@swc/wasm": "~1.15.24",
     "auto-cr-rules": "workspace:*",
     "commander": "^14.0.3",
     "consola": "^3.4.2",
@@ -55,17 +55,17 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@swc/types": "^0.1.25",
-    "@types/node": "^25.3.0",
-    "@types/picomatch": "^4.0.2",
+    "@swc/types": "^0.1.28",
+    "@types/node": "^25.5.2",
+    "@types/picomatch": "^4.0.3",
     "eslint": "^10.0.2",
     "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.3.0",
+    "globals": "^17.4.0",
     "jiti": "^2.5.1",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.56.1"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0"
   }
 }

@@ -9,6 +9,10 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+    "types": [
+      "node"
+    ],
     "lib": [
       "ESNext"
     ]
