@@ -1,5 +1,5 @@
-import type { CallExpression, Expression, NewExpression, Span, TemplateLiteral } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
+import { extractRegExpPattern } from './utils/regexp'
 
 // 检测热路径中可能引发灾难性回溯的嵌套无限量词正则。
 // 只处理字面量或静态字符串/模板字符串构造的 RegExp，忽略动态拼接。
@@ -71,11 +71,6 @@ export const noCatastrophicRegex = defineRule(
   }
 )
 
-type RegExpPattern = {
-  pattern: string
-  span?: Span
-}
-
 type Quantifier = {
   unbounded: boolean
   length: number
@@ -83,68 +78,6 @@ type Quantifier = {
 
 type GroupState = {
   hasUnbounded: boolean
-}
-
-// 提取静态 RegExp 字符串，动态表达式直接跳过。
-const extractRegExpPattern = (expression: CallExpression | NewExpression): RegExpPattern | null => {
-  const callee = expression.callee
-  if (callee.type !== 'Identifier' || callee.value !== 'RegExp') {
-    return null
-  }
-
-  const args = expression.arguments ?? []
-  if (args.length === 0) {
-    return null
-  }
-
-  const pattern = getStaticPattern(args[0]?.expression)
-  if (!pattern) {
-    return null
-  }
-
-  return {
-    pattern,
-    span: expression.span,
-  }
-}
-
-// 只接受字符串字面量或无表达式的模板字符串。
-const getStaticPattern = (expression?: Expression): string | null => {
-  if (!expression) {
-    return null
-  }
-
-  const candidate = unwrapExpression(expression)
-
-  if (candidate.type === 'StringLiteral') {
-    return candidate.value
-  }
-
-  if (candidate.type === 'TemplateLiteral') {
-    return resolveTemplateLiteral(candidate)
-  }
-
-  return null
-}
-
-// 去掉包裹用的括号表达式，避免误判。
-const unwrapExpression = (expression: Expression): Expression => {
-  let current = expression
-
-  while (current.type === 'ParenthesisExpression') {
-    current = current.expression
-  }
-
-  return current
-}
-
-// 仅当模板字符串没有插值表达式时才返回完整字符串。
-const resolveTemplateLiteral = (literal: TemplateLiteral): string | null => {
-  if (literal.expressions.length > 0) {
-    return null
-  }
-
-  return literal.quasis.map((quasi) => quasi.cooked ?? quasi.raw).join('')
 }
 
 // 简化的正则分析：检测分组内出现无限量词，且分组本身也被无限量词包裹。

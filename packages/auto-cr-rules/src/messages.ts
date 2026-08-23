@@ -26,6 +26,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `生产代码导入了测试专用模块 "${value}"，测试夹具、mock 或测试框架会被打进生产包。`,
     noSelfPackageImport: ({ value, packageName }) =>
       `通过包名 "${value}" 导入了自己所在的包 "${packageName}"，会绕过源码解析到安装/构建产物，造成代码陈旧、模块双实例与隐式循环。`,
+    noRegexpConstructionInHotPath: ({ pattern }) =>
+      `热路径中用常量模式构造正则 "${pattern}"，每次迭代都会重新编译；请提升到循环/回调外复用。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -54,6 +56,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Production code imports test-only module "${value}"; test fixtures, mocks or the test framework will end up in the production bundle.`,
     noSelfPackageImport: ({ value, packageName }) =>
       `"${value}" imports the module's own package "${packageName}" by name; this bypasses the source tree and resolves to the installed/built copy, causing stale code, duplicate module instances and hidden cycles.`,
+    noRegexpConstructionInHotPath: ({ pattern }) =>
+      `RegExp is built from the constant pattern "${pattern}" inside a hot path and recompiled on every iteration; hoist it out of the loop/callback and reuse it.`,
   },
 }
 

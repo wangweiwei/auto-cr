@@ -37,4 +37,5 @@ export {
   noLostErrorCause,
   noTestImportInProd,
   noSelfPackageImport,
+  noRegexpConstructionInHotPath,
 } from './rules'

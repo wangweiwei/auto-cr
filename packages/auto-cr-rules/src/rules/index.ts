@@ -13,6 +13,7 @@ import { noAccumulatingSpread } from './noAccumulatingSpread'
 import { noLostErrorCause } from './noLostErrorCause'
 import { noTestImportInProd } from './noTestImportInProd'
 import { noSelfPackageImport } from './noSelfPackageImport'
+import { noRegexpConstructionInHotPath } from './noRegexpConstructionInHotPath'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -30,6 +31,7 @@ export const builtinRules: Rule[] = [
   noLostErrorCause,
   noTestImportInProd,
   noSelfPackageImport,
+  noRegexpConstructionInHotPath,
 ]
 
 export {
@@ -47,4 +49,5 @@ export {
   noLostErrorCause,
   noTestImportInProd,
   noSelfPackageImport,
+  noRegexpConstructionInHotPath,
 }
