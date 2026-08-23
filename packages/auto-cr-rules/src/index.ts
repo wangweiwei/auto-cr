@@ -36,4 +36,5 @@ export {
   noAccumulatingSpread,
   noLostErrorCause,
   noTestImportInProd,
+  noSelfPackageImport,
 } from './rules'

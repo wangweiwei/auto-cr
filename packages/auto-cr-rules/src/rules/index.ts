@@ -12,6 +12,7 @@ import { noAsyncForEach } from './noAsyncForEach'
 import { noAccumulatingSpread } from './noAccumulatingSpread'
 import { noLostErrorCause } from './noLostErrorCause'
 import { noTestImportInProd } from './noTestImportInProd'
+import { noSelfPackageImport } from './noSelfPackageImport'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -28,6 +29,7 @@ export const builtinRules: Rule[] = [
   noAccumulatingSpread,
   noLostErrorCause,
   noTestImportInProd,
+  noSelfPackageImport,
 ]
 
 export {
@@ -44,4 +46,5 @@ export {
   noAccumulatingSpread,
   noLostErrorCause,
   noTestImportInProd,
+  noSelfPackageImport,
 }

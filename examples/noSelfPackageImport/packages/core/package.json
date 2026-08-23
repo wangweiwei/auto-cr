@@ -1,0 +1,7 @@
+{
+  "name": "@demo/core",
+  "exports": {
+    ".": "./src/index.ts",
+    "./utils": "./src/utils.ts"
+  }
+}

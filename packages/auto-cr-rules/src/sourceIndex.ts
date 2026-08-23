@@ -3,6 +3,10 @@ import type { SourceIndex } from './types'
 
 // 构建行号索引。lineOffsets 记录每一行的起始字符偏移（基于 JS 字符索引）。
 // moduleStart 来自 SWC Module.span.start（byte offset），用于与 SWC 的 span 对齐。
+// 注意：SWC 的 Module.span 从第一个 token 开始，而不是文件第 0 字节——前导空行、许可证注释都不包含在内。
+// 若直接拿它当文件起点，所有 span 都会向前偏移“前导琐碎内容”的字节数，行号随之报早。
+// 这里把前导空白/注释的字节长度补回去，使 span.start - moduleStart 恰好等于文件内的真实字节偏移。
+// （shebang 行是例外：SWC 会把它算进 module span，因此不作为琐碎内容跳过。）
 export const createSourceIndex = (source: string, moduleStart: number): SourceIndex => {
   const lineOffsets: number[] = [0]
 
@@ -13,9 +17,63 @@ export const createSourceIndex = (source: string, moduleStart: number): SourceIn
   }
 
   return {
-    moduleStart,
+    moduleStart: moduleStart - leadingTriviaByteLength(source),
     lineOffsets,
   }
+}
+
+// 计算文件开头到第一个 token 之间的 UTF-8 字节数：BOM、空白、// 行注释、/* */ 块注释。
+const leadingTriviaByteLength = (source: string): number => {
+  let index = 0
+  let bytes = 0
+
+  if (source.charCodeAt(0) === 0xfeff) {
+    index = 1
+    bytes = 3
+  }
+
+  while (index < source.length) {
+    const code = source.charCodeAt(index)
+
+    if (code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d) {
+      index += 1
+      bytes += 1
+      continue
+    }
+
+    if (source.startsWith('//', index)) {
+      const end = source.indexOf('\n', index)
+      const stop = end === -1 ? source.length : end
+      bytes += utf8ByteLength(source, index, stop)
+      index = stop
+      continue
+    }
+
+    if (source.startsWith('/*', index)) {
+      const end = source.indexOf('*/', index + 2)
+      const stop = end === -1 ? source.length : end + 2
+      bytes += utf8ByteLength(source, index, stop)
+      index = stop
+      continue
+    }
+
+    break
+  }
+
+  return bytes
+}
+
+const utf8ByteLength = (source: string, start: number, end: number): number => {
+  let index = start
+  let bytes = 0
+
+  while (index < end) {
+    const { bytes: size, nextIndex } = readUtf8Character(source, index, source.charCodeAt(index))
+    bytes += size
+    index = nextIndex
+  }
+
+  return bytes
 }
 
 // 根据 SWC byte offset 计算行号：先把 byte 偏移转成字符索引，再做二分查找。

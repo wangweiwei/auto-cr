@@ -24,6 +24,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `catch 块中抛出了新错误，但捕获到的异常${name ? ` "${name}"` : ''}从未被使用，原始错误的堆栈与上下文会随之丢失。`,
     noTestImportInProd: ({ value }) =>
       `生产代码导入了测试专用模块 "${value}"，测试夹具、mock 或测试框架会被打进生产包。`,
+    noSelfPackageImport: ({ value, packageName }) =>
+      `通过包名 "${value}" 导入了自己所在的包 "${packageName}"，会绕过源码解析到安装/构建产物，造成代码陈旧、模块双实例与隐式循环。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -50,6 +52,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `A new error is thrown inside this catch block, but the caught exception${name ? ` "${name}"` : ''} is never used, so the original stack and context are lost.`,
     noTestImportInProd: ({ value }) =>
       `Production code imports test-only module "${value}"; test fixtures, mocks or the test framework will end up in the production bundle.`,
+    noSelfPackageImport: ({ value, packageName }) =>
+      `"${value}" imports the module's own package "${packageName}" by name; this bypasses the source tree and resolves to the installed/built copy, causing stale code, duplicate module instances and hidden cycles.`,
   },
 }
 
