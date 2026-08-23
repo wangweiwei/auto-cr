@@ -22,7 +22,7 @@
 
 ## 特性亮点（自动化代码审查 & 静态代码分析）
 
-- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`。
+- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`、`no-async-foreach`。
 - **可扩展 SDK**：`auto-cr-rules` 暴露 `defineRule`、`helpers.imports` 等工具，降低编写 TypeScript / JavaScript 自定义规则的复杂度。
 - **工作区管理**：使用 pnpm workspace 同时管理 CLI 与规则包，一次构建即可验证完整流程。
 - **发布友好**：内置版本递增脚本与 npm 发布命令，保持两个包的版本同步。
@@ -205,6 +205,7 @@ module.exports = {
 - [规则：no-cross-package-private-imports](./docs/no-cross-package-private-imports.md)
 - [规则：no-blocking-api-in-hot-path](./docs/no-blocking-api-in-hot-path.md)
 - [规则：no-swallowed-errors](./docs/no-swallowed-errors.md)
+- [规则：no-async-foreach](./docs/no-async-foreach.md)
 
 ## 编写自定义规则
 
@@ -289,6 +290,7 @@ examples/
   noCatastrophicRegex    # 灾难性回溯示例
   noDeepCloneInLoop      # 循环深拷贝示例
   noN2ArrayLookup        # O(n^2) 查询示例
+  noAsyncForEach         # async forEach 回调示例
 ```
 
 核心脚本：

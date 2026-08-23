@@ -8,6 +8,7 @@ import { noCatastrophicRegex } from './noCatastrophicRegex'
 import { noBlockingApiInHotPath } from './noBlockingApiInHotPath'
 import { noDeepCloneInLoop } from './noDeepCloneInLoop'
 import { noN2ArrayLookup } from './noN2ArrayLookup'
+import { noAsyncForEach } from './noAsyncForEach'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -20,6 +21,7 @@ export const builtinRules: Rule[] = [
   noBlockingApiInHotPath,
   noDeepCloneInLoop,
   noN2ArrayLookup,
+  noAsyncForEach,
 ]
 
 export {
@@ -32,4 +34,5 @@ export {
   noBlockingApiInHotPath,
   noDeepCloneInLoop,
   noN2ArrayLookup,
+  noAsyncForEach,
 }

@@ -22,7 +22,7 @@
 
 ## Feature Highlights (Automated Code Review & Static Analysis)
 
-- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, and `no-n2-array-lookup`.
+- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, `no-n2-array-lookup`, and `no-async-foreach`.
 - **Extensible SDK**: `auto-cr-rules` exposes helpers like `defineRule` and `helpers.imports`, reducing the friction of authoring custom TypeScript / JavaScript rules.
 - **Workspace Friendly**: Manage both the CLI and rule package via pnpm workspaces and validate the full pipeline with a single build.
 - **Publishing Toolkit**: Version bump scripts and npm publish commands keep both packages in sync.
@@ -195,6 +195,7 @@ module.exports = {
 - [Rule: no-cross-package-private-imports](./docs/no-cross-package-private-imports.md)
 - [Rule: no-blocking-api-in-hot-path](./docs/no-blocking-api-in-hot-path.md)
 - [Rule: no-swallowed-errors](./docs/no-swallowed-errors.md)
+- [Rule: no-async-foreach](./docs/no-async-foreach.md)
 
 ## Writing Custom Rules
 
@@ -279,6 +280,7 @@ examples/
   noCatastrophicRegex    # Example for regex backtracking
   noDeepCloneInLoop      # Example for deep clone in loops
   noN2ArrayLookup        # Example for O(n^2) lookups
+  noAsyncForEach         # Example for async forEach callbacks
 ```
 
 Essential scripts:

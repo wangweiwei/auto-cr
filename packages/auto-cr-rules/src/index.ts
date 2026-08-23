@@ -32,4 +32,5 @@ export {
   noBlockingApiInHotPath,
   noDeepCloneInLoop,
   noN2ArrayLookup,
+  noAsyncForEach,
 } from './rules'

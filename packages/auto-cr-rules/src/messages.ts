@@ -16,6 +16,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noBlockingApiInHotPath: ({ api }) => `热路径中调用阻塞式 API ${api}，可能反复阻塞事件循环。`,
     noDeepCloneInLoop: () => '热路径中使用深拷贝（structuredClone 或 JSON.parse(JSON.stringify)），可能造成明显开销。',
     noN2ArrayLookup: ({ method }) => `热路径中使用线性查找方法 ${method}，可能导致 O(n^2) 访问。`,
+    noAsyncForEach: () =>
+      'forEach 不会等待 async 回调：调用方会在回调完成前继续执行，回调内抛出的异常也会变成未处理的 Promise rejection。',
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -34,6 +36,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noDeepCloneInLoop: () => 'Deep cloning in a hot path (structuredClone or JSON.parse(JSON.stringify)) may be costly.',
     noN2ArrayLookup: ({ method }) =>
       `Linear lookup method ${method} is used in a hot path and may cause O(n^2) access.`,
+    noAsyncForEach: () =>
+      'forEach does not await async callbacks: execution continues before they finish, and errors thrown inside become unhandled promise rejections.',
   },
 }
 
