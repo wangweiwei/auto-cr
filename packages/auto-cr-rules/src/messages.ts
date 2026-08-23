@@ -20,6 +20,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       'forEach 不会等待 async 回调：调用方会在回调完成前继续执行，回调内抛出的异常也会变成未处理的 Promise rejection。',
     noAccumulatingSpread: ({ name }) =>
       `热路径中对累加器 "${name}" 使用展开语法，每次迭代都会复制整个累加器，导致 O(n^2) 开销。`,
+    noLostErrorCause: ({ name }) =>
+      `catch 块中抛出了新错误，但捕获到的异常${name ? ` "${name}"` : ''}从未被使用，原始错误的堆栈与上下文会随之丢失。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -42,6 +44,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       'forEach does not await async callbacks: execution continues before they finish, and errors thrown inside become unhandled promise rejections.',
     noAccumulatingSpread: ({ name }) =>
       `Spreading accumulator "${name}" in a hot path copies it on every iteration and leads to O(n^2) work.`,
+    noLostErrorCause: ({ name }) =>
+      `A new error is thrown inside this catch block, but the caught exception${name ? ` "${name}"` : ''} is never used, so the original stack and context are lost.`,
   },
 }
 

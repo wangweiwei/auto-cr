@@ -34,4 +34,5 @@ export {
   noN2ArrayLookup,
   noAsyncForEach,
   noAccumulatingSpread,
+  noLostErrorCause,
 } from './rules'

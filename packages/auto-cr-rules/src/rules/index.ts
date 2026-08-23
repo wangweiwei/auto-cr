@@ -10,6 +10,7 @@ import { noDeepCloneInLoop } from './noDeepCloneInLoop'
 import { noN2ArrayLookup } from './noN2ArrayLookup'
 import { noAsyncForEach } from './noAsyncForEach'
 import { noAccumulatingSpread } from './noAccumulatingSpread'
+import { noLostErrorCause } from './noLostErrorCause'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -24,6 +25,7 @@ export const builtinRules: Rule[] = [
   noN2ArrayLookup,
   noAsyncForEach,
   noAccumulatingSpread,
+  noLostErrorCause,
 ]
 
 export {
@@ -38,4 +40,5 @@ export {
   noN2ArrayLookup,
   noAsyncForEach,
   noAccumulatingSpread,
+  noLostErrorCause,
 }
