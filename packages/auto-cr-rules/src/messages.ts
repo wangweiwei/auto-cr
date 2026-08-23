@@ -22,6 +22,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `热路径中对累加器 "${name}" 使用展开语法，每次迭代都会复制整个累加器，导致 O(n^2) 开销。`,
     noLostErrorCause: ({ name }) =>
       `catch 块中抛出了新错误，但捕获到的异常${name ? ` "${name}"` : ''}从未被使用，原始错误的堆栈与上下文会随之丢失。`,
+    noTestImportInProd: ({ value }) =>
+      `生产代码导入了测试专用模块 "${value}"，测试夹具、mock 或测试框架会被打进生产包。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -46,6 +48,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Spreading accumulator "${name}" in a hot path copies it on every iteration and leads to O(n^2) work.`,
     noLostErrorCause: ({ name }) =>
       `A new error is thrown inside this catch block, but the caught exception${name ? ` "${name}"` : ''} is never used, so the original stack and context are lost.`,
+    noTestImportInProd: ({ value }) =>
+      `Production code imports test-only module "${value}"; test fixtures, mocks or the test framework will end up in the production bundle.`,
   },
 }
 

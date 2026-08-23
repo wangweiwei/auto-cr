@@ -49,6 +49,10 @@
         { "name": "features", "paths": ["src/features/**"], "imports": ["@features/**"], "allow": ["shared"] },
         { "name": "shared", "paths": ["src/shared/**"], "imports": ["@shared/**"], "allow": [] }
       ]
+    },
+    "no-test-import-in-prod": {
+      "directories": ["__tests__", "__mocks__", "__fixtures__", "test", "tests", "spec"],
+      "suffixes": ["test", "spec"]
     }
   }
 }
@@ -70,6 +74,10 @@ module.exports = {
         { name: 'features', paths: ['src/features/**'], imports: ['@features/**'], allow: ['shared'] },
         { name: 'shared', paths: ['src/shared/**'], imports: ['@shared/**'], allow: [] },
       ],
+    },
+    'no-test-import-in-prod': {
+      directories: ['__tests__', '__mocks__', '__fixtures__', 'test', 'tests', 'spec'],
+      suffixes: ['test', 'spec'],
     },
   }
 }

@@ -35,4 +35,5 @@ export {
   noAsyncForEach,
   noAccumulatingSpread,
   noLostErrorCause,
+  noTestImportInProd,
 } from './rules'
