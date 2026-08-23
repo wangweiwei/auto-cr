@@ -329,7 +329,7 @@ async function run(
     }
 
     // 先展开路径，再进行二次过滤，保证 ignore 与扩展名筛选一致生效。
-    let allFiles: string[] = []
+    const allFiles: string[] = []
 
     for (const targetPath of validPaths) {
       if (isIgnored(targetPath)) {
@@ -345,7 +345,9 @@ async function run(
         const directoryFiles = getAllFiles(targetPath, [], SCANNABLE_EXTENSIONS, {
           shouldIgnore: (fullPath) => isIgnored(fullPath),
         })
-        allFiles = [...allFiles, ...directoryFiles]
+        for (const file of directoryFiles) {
+          allFiles.push(file)
+        }
       }
     }
 

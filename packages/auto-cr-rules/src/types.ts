@@ -111,6 +111,7 @@ export interface RuleMessages {
   noDeepCloneInLoop(): string
   noN2ArrayLookup(params: { method: string }): string
   noAsyncForEach(): string
+  noAccumulatingSpread(params: { name: string }): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。

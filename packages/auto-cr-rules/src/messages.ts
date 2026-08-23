@@ -18,6 +18,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noN2ArrayLookup: ({ method }) => `热路径中使用线性查找方法 ${method}，可能导致 O(n^2) 访问。`,
     noAsyncForEach: () =>
       'forEach 不会等待 async 回调：调用方会在回调完成前继续执行，回调内抛出的异常也会变成未处理的 Promise rejection。',
+    noAccumulatingSpread: ({ name }) =>
+      `热路径中对累加器 "${name}" 使用展开语法，每次迭代都会复制整个累加器，导致 O(n^2) 开销。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -38,6 +40,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Linear lookup method ${method} is used in a hot path and may cause O(n^2) access.`,
     noAsyncForEach: () =>
       'forEach does not await async callbacks: execution continues before they finish, and errors thrown inside become unhandled promise rejections.',
+    noAccumulatingSpread: ({ name }) =>
+      `Spreading accumulator "${name}" in a hot path copies it on every iteration and leads to O(n^2) work.`,
   },
 }
 

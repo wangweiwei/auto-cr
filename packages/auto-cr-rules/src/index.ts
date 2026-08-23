@@ -33,4 +33,5 @@ export {
   noDeepCloneInLoop,
   noN2ArrayLookup,
   noAsyncForEach,
+  noAccumulatingSpread,
 } from './rules'
