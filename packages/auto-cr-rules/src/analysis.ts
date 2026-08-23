@@ -21,7 +21,7 @@ import type {
   ExportAllDeclaration,
   ExportNamedDeclaration,
 } from '@swc/types'
-import type { ImportReference, LoopEntry, RuleAnalysis, HotCallbackEntry } from './types'
+import type { ImportReference, LoopEntry, NonLiteralImportReference, RuleAnalysis, HotCallbackEntry } from './types'
 
 // 热路径定义：循环体 + 常见数组回调（map/forEach/...）的函数体。
 const HOT_CALLBACK_METHODS = new Set([
@@ -41,6 +41,7 @@ const HOT_CALLBACK_METHODS = new Set([
 // 这样规则只需读取索引即可，避免每条规则重复扫 AST。
 export const analyzeModule = (ast: Module): RuleAnalysis => {
   const imports: ImportReference[] = []
+  const nonLiteralImports: NonLiteralImportReference[] = []
   const loops: LoopEntry[] = []
   const callbacks: HotCallbackEntry[] = []
   const tryStatements: TryStatement[] = []
@@ -130,7 +131,7 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
       }
       case 'CallExpression': {
         // 统一在这里处理 import/require、热路径调用点、数组回调。
-        handleCallExpression(candidate as CallExpression, inHot, imports, callbacks, hotPath, walk)
+        handleCallExpression(candidate as CallExpression, inHot, imports, nonLiteralImports, callbacks, hotPath, walk)
         return
       }
       case 'NewExpression': {
@@ -179,23 +180,28 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
   walk(ast, false)
 
   // 对分析结果做 freeze，防止规则侧误修改。
-  return Object.freeze({
+  // 用带类型标注的常量而不是 as 断言：新增索引时漏写返回字段会在编译期暴露，而不是在运行期变成 undefined。
+  const analysis: RuleAnalysis = Object.freeze({
     imports: Object.freeze(imports),
     loops: Object.freeze(loops),
     callbacks: Object.freeze(callbacks),
     tryStatements: Object.freeze(tryStatements),
+    nonLiteralImports: Object.freeze(nonLiteralImports),
     hotPath: Object.freeze({
       callExpressions: Object.freeze(hotPath.callExpressions),
       newExpressions: Object.freeze(hotPath.newExpressions),
       regExpLiterals: Object.freeze(hotPath.regExpLiterals),
     }),
-  }) as RuleAnalysis
+  })
+
+  return analysis
 }
 
 const handleCallExpression = (
   callExpression: CallExpression,
   inHot: boolean,
   imports: ImportReference[],
+  nonLiteralImports: NonLiteralImportReference[],
   callbacks: HotCallbackEntry[],
   hotPath: {
     callExpressions: CallExpression[]
@@ -210,6 +216,11 @@ const handleCallExpression = (
   const reference = extractImportReference(callExpression)
   if (reference) {
     imports.push(reference)
+  } else {
+    const nonLiteral = extractNonLiteralImport(callExpression)
+    if (nonLiteral) {
+      nonLiteralImports.push(nonLiteral)
+    }
   }
 
   // 判断是否为数组高阶回调，回调函数体应当视为热路径。
@@ -315,6 +326,26 @@ const getMemberMethodName = (expression: Expression | { type?: string }): string
 }
 
 // 从调用表达式中提取 import/require 的字符串字面量参数。
+// 说明符不是字符串字面量的 import() / require()：单独记录参数表达式，交给规则判断是否可静态解析。
+const extractNonLiteralImport = (node: CallExpression): NonLiteralImportReference | null => {
+  const [firstArgument] = node.arguments
+  if (!firstArgument || isSpread(firstArgument)) {
+    return null
+  }
+
+  const kind =
+    node.callee.type === 'Import'
+      ? 'dynamic'
+      : isRequireIdentifier(node.callee) || isRequireMember(node.callee)
+        ? 'require'
+        : null
+  if (!kind) {
+    return null
+  }
+
+  return { kind, argument: firstArgument.expression, span: node.span }
+}
+
 const extractImportReference = (node: CallExpression): ImportReference | null => {
   if (!node.arguments.length) {
     return null

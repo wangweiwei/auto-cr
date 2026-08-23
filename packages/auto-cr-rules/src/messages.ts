@@ -29,6 +29,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noRegexpConstructionInHotPath: ({ pattern }) =>
       `热路径中用常量模式构造正则 "${pattern}"，每次迭代都会重新编译；请提升到循环/回调外复用。`,
     noAwaitInLoop: () => '循环体内逐次 await，每轮都要等上一轮完成；若各轮互不依赖，可改为并发执行。',
+    noNonLiteralDynamicImport: ({ form }) =>
+      `${form} 的模块说明符不是字面量，打包器无法静态解析：要么运行时找不到模块，要么被迫把整个目录打进产物，依赖分析也看不到这条边。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -61,6 +63,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `RegExp is built from the constant pattern "${pattern}" inside a hot path and recompiled on every iteration; hoist it out of the loop/callback and reuse it.`,
     noAwaitInLoop: () =>
       'Awaiting inside a loop serializes the iterations; if they are independent, run them concurrently instead.',
+    noNonLiteralDynamicImport: ({ form }) =>
+      `The specifier passed to ${form} is not a literal, so bundlers cannot resolve it statically: the module may be missing at runtime or an entire directory gets bundled, and dependency analysis cannot see this edge.`,
   },
 }
 

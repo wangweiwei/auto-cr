@@ -2,6 +2,7 @@ import type {
   ArrowFunctionExpression,
   CallExpression,
   DoWhileStatement,
+  Expression,
   ForInStatement,
   ForOfStatement,
   ForStatement,
@@ -90,8 +91,16 @@ export interface HotPathIndex {
 }
 
 // 规则共享分析结果：一次遍历抽取 imports/loops/callbacks/tryStatements/hotPath。
+// 说明符不是字面量的 import() / require()。单独索引而不混入 imports：后者的 value 必须是字符串。
+export interface NonLiteralImportReference {
+  kind: 'dynamic' | 'require'
+  argument: Expression
+  span: Span
+}
+
 export interface RuleAnalysis {
   imports: ReadonlyArray<ImportReference>
+  nonLiteralImports: ReadonlyArray<NonLiteralImportReference>
   loops: ReadonlyArray<LoopEntry>
   callbacks: ReadonlyArray<HotCallbackEntry>
   tryStatements: ReadonlyArray<TryStatement>
@@ -117,6 +126,7 @@ export interface RuleMessages {
   noSelfPackageImport(params: { value: string; packageName: string }): string
   noRegexpConstructionInHotPath(params: { pattern: string }): string
   noAwaitInLoop(): string
+  noNonLiteralDynamicImport(params: { form: string }): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。

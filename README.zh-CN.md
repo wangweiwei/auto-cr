@@ -22,7 +22,7 @@
 
 ## 特性亮点（自动化代码审查 & 静态代码分析）
 
-- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`、`no-async-foreach`、`no-accumulating-spread`、`no-lost-error-cause`、`no-test-import-in-prod`、`no-self-package-import`、`no-regexp-construction-in-hot-path`、`no-await-in-loop`。
+- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`、`no-async-foreach`、`no-accumulating-spread`、`no-lost-error-cause`、`no-test-import-in-prod`、`no-self-package-import`、`no-regexp-construction-in-hot-path`、`no-await-in-loop`、`no-non-literal-dynamic-import`（默认关闭）。
 - **可扩展 SDK**：`auto-cr-rules` 暴露 `defineRule`、`helpers.imports` 等工具，降低编写 TypeScript / JavaScript 自定义规则的复杂度。
 - **工作区管理**：使用 pnpm workspace 同时管理 CLI 与规则包，一次构建即可验证完整流程。
 - **发布友好**：内置版本递增脚本与 npm 发布命令，保持两个包的版本同步。
@@ -212,6 +212,7 @@ module.exports = {
 - [规则：no-self-package-import](./docs/no-self-package-import.md)
 - [规则：no-regexp-construction-in-hot-path](./docs/no-regexp-construction-in-hot-path.md)
 - [规则：no-await-in-loop](./docs/no-await-in-loop.md)
+- [规则：no-non-literal-dynamic-import](./docs/no-non-literal-dynamic-import.md)
 
 ## 编写自定义规则
 
@@ -303,6 +304,7 @@ examples/
   noSelfPackageImport    # 通过包名导入自身示例
   noRegexpConstructionInHotPath # 热路径构造正则示例
   noAwaitInLoop          # 循环内逐次 await 示例
+  noNonLiteralDynamicImport # 非字面量动态导入示例（默认关闭的规则）
 ```
 
 核心脚本：

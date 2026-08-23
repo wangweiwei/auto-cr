@@ -40,7 +40,8 @@
   "rules": {
     "no-deep-relative-imports": "error",
     "no-swallowed-errors": "off",
-    "no-layer-violations": "off"
+    "no-layer-violations": "off",
+    "no-non-literal-dynamic-import": "warning"
   },
   "ruleOptions": {
     "no-layer-violations": {
@@ -65,7 +66,8 @@ module.exports = {
   rules: {
     'no-swallowed-errors': 'warning', // 覆盖为警告
     'no-deep-relative-imports': true, // 保持默认严重级别
-    'no-layer-violations': 'off' // 保持关闭；开启时改为 warning/error
+    'no-layer-violations': 'off', // 保持关闭；开启时改为 warning/error
+    'no-non-literal-dynamic-import': 'warning', // 默认关闭，需要打包的项目建议开启
   },
   ruleOptions: {
     'no-layer-violations': {
