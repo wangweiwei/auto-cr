@@ -56,7 +56,8 @@ export interface RuleViolationInit {
 export type RuleViolationInput = string | RuleViolationInit
 
 export interface ImportReference {
-  kind: 'static' | 'dynamic' | 'require'
+  // reexport 对应 `export ... from '...'`：它同样是本文件对目标模块的依赖。
+  kind: 'static' | 'dynamic' | 'require' | 'reexport'
   value: string
   span?: Span
 }

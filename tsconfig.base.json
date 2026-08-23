@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES5",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "target": "ES2022",
+    "module": "node16",
+    "moduleResolution": "node16",
     "declaration": true,
     "strict": true,
 
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
     "types": [
       "node"
     ],

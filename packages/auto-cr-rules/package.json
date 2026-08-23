@@ -35,6 +35,9 @@
   "bugs": {
     "url": "https://github.com/wangweiwei/auto-cr/issues"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "sideEffects": false,
   "dependencies": {
     "@swc/types": "^0.1.28"

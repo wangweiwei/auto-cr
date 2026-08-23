@@ -17,8 +17,6 @@ const MAX_GRAPH_DEPTH = 80
 
 // 跨文件缓存解析结果，减少重复 IO 与正则扫描。
 const resolvedImportCache = new Map<string, string[]>()
-// 记录已上报的环路（做规范化），避免同一环路重复报错。
-const reportedCycles = new Set<string>()
 // 缓存 tsconfig 解析结果，避免重复 IO。
 const tsconfigCache = new Map<string, TsConfigInfo>()
 const tsconfigLookupCache = new Map<string, TsConfigInfo | null>()
@@ -32,35 +30,36 @@ export const noCircularDependencies = defineRule(
     const origin = path.resolve(filePath)
     const root = resolveProjectRoot(origin)
     const resolver = createModuleResolver(root)
-    const resolvedTargets = new Set<string>()
     const warnedSpecifiers = new Set<string>()
+    // 按文件记录已上报的环路（做规范化），避免同一文件的多条 import 命中同一环路时重复报错。
+    // 刻意不做成模块级共享状态：worker 池下每个 worker 各持一份，会让上报数量随文件分配而漂移；
+    // 且模块级状态在同进程内多次扫描时不会重置。
+    const reportedCycles = new Set<string>()
 
     for (const reference of helpers.imports) {
       const resolution = resolveModuleSpecifier(origin, reference.value, root, resolver)
-      if (resolution.resolved) {
-        resolvedTargets.add(resolution.resolved)
-      } else if (resolution.shouldWarn) {
-        const warningKey = `${origin}:${reference.value}`
-        if (!warnedSpecifiers.has(warningKey)) {
-          warnedSpecifiers.add(warningKey)
-          // 共享 sourceIndex 统一做 byte -> line 转换，保证多字节字符定位准确。
-          const computedLine = reference.span
-            ? resolveLineFromByteOffset(source, sourceIndex, reference.span.start)
-            : undefined
-          const fallbackLine = findImportLine(source, reference.value)
-          const line = selectLineNumber(computedLine, fallbackLine)
-          helpers.reportViolation(
-            {
-              description: messages.unresolvedImport({ value: reference.value }),
-              code: reference.value,
-              span: reference.span,
-              line,
-            },
-            reference.span
-          )
+      if (!resolution.resolved) {
+        if (resolution.shouldWarn) {
+          const warningKey = `${origin}:${reference.value}`
+          if (!warnedSpecifiers.has(warningKey)) {
+            warnedSpecifiers.add(warningKey)
+            // 共享 sourceIndex 统一做 byte -> line 转换，保证多字节字符定位准确。
+            const computedLine = reference.span
+              ? resolveLineFromByteOffset(source, sourceIndex, reference.span.start)
+              : undefined
+            const fallbackLine = findImportLine(source, reference.value)
+            const line = selectLineNumber(computedLine, fallbackLine)
+            helpers.reportViolation(
+              {
+                description: messages.unresolvedImport({ value: reference.value }),
+                code: reference.value,
+                span: reference.span,
+                line,
+              },
+              reference.span
+            )
+          }
         }
-        continue
-      } else {
         continue
       }
 
@@ -115,8 +114,11 @@ export const noCircularDependencies = defineRule(
       )
     }
 
-    // 用 SWC 提供的 import 列表初始化当前文件的依赖，保证准确性与性能。
-    resolvedImportCache.set(origin, Array.from(resolvedTargets))
+    // 依赖图的边只允许有一个来源（extractImportSpecifiers），否则同一个文件在不同 worker 里
+    // 可能一边走 SWC、一边走正则，建出不同的图。SWC 的 helpers.imports 不覆盖 `export ... from`，
+    // 一旦它先写入缓存，就会把再导出形成的环整个吃掉。
+    // 这里复用已在内存里的 source，既保持单一语义，又不额外读盘。
+    resolvedImportCache.set(origin, resolveImportsFromSource(origin, source, root, resolver))
   }
 )
 
@@ -127,18 +129,35 @@ const resolveProjectRoot = (filePath: string): string => {
     return cwd
   }
 
-  let current = path.dirname(filePath)
+  // 扫描 cwd 之外的路径时，必须以文件自身为锚点向上找项目根，
+  // 否则 root 会退回到与被扫描文件毫无关系的 cwd，导致 isWithinRoot 丢弃所有解析结果、
+  // 整条规则静默失效（扫到文件但一条都不报）。
+  // 与 utils/workspace.ts 的 resolveWorkspaceRoot 保持一致：优先 workspace 根，其次最近的 package.json。
+  const resolved = path.resolve(filePath)
+  let current = path.dirname(resolved)
   let last = ''
+  let nearestPackageRoot: string | null = null
 
   while (current !== last) {
-    if (fs.existsSync(path.join(current, 'package.json'))) {
+    if (fs.existsSync(path.join(current, 'pnpm-workspace.yaml'))) {
       return current
     }
+
+    if (!nearestPackageRoot && fs.existsSync(path.join(current, 'package.json'))) {
+      nearestPackageRoot = current
+    }
+
     last = current
     current = path.dirname(current)
   }
 
-  return cwd
+  if (nearestPackageRoot) {
+    return nearestPackageRoot
+  }
+
+  // 完全找不到项目标记时，不再退回 cwd（那等于把所有解析结果全部丢弃）。
+  // 此时不存在“仓库边界”可言，改用文件所在盘符/根目录，让 isWithinRoot 不再误杀。
+  return path.parse(resolved).root
 }
 
 // 防止解析路径逃逸到仓库外，避免跨项目误报。
@@ -1029,6 +1048,25 @@ const findPathToOrigin = (start: string, origin: string, root: string, resolver:
 
 // 读取文件并通过简单正则抽取 import/require/export-from。
 // 这里不重新解析 AST，成本低但可能漏掉非常规写法。
+// 依赖图边的唯一生产者：给定文件内容，解析出该文件指向的模块。
+const resolveImportsFromSource = (
+  filePath: string,
+  source: string,
+  root: string,
+  resolver: ModuleResolver
+): string[] => {
+  const resolved = new Set<string>()
+
+  for (const spec of extractImportSpecifiers(source)) {
+    const resolution = resolveModuleSpecifier(filePath, spec, root, resolver)
+    if (resolution.resolved) {
+      resolved.add(resolution.resolved)
+    }
+  }
+
+  return Array.from(resolved)
+}
+
 const getResolvedImports = (filePath: string, root: string, resolver: ModuleResolver): string[] => {
   const cached = resolvedImportCache.get(filePath)
   if (cached) {
@@ -1041,17 +1079,7 @@ const getResolvedImports = (filePath: string, root: string, resolver: ModuleReso
     return []
   }
 
-  const resolved = new Set<string>()
-  const specifiers = extractImportSpecifiers(source)
-
-  for (const spec of specifiers) {
-    const resolution = resolveModuleSpecifier(filePath, spec, root, resolver)
-    if (resolution.resolved) {
-      resolved.add(resolution.resolved)
-    }
-  }
-
-  const list = Array.from(resolved)
+  const list = resolveImportsFromSource(filePath, source, root, resolver)
   resolvedImportCache.set(filePath, list)
   return list
 }

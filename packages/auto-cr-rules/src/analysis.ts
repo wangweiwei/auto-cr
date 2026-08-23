@@ -18,6 +18,8 @@ import type {
   TryStatement,
   WhileStatement,
   DoWhileStatement,
+  ExportAllDeclaration,
+  ExportNamedDeclaration,
 } from '@swc/types'
 import type { ImportReference, LoopEntry, RuleAnalysis, HotCallbackEntry } from './types'
 
@@ -65,6 +67,22 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
       })
       // ImportDeclaration 不需要继续深挖（内部结构固定），可以提前返回。
       return
+    }
+
+    // `export { x } from './y'` / `export * from './y'` 与 import 一样，是本文件对目标模块的依赖。
+    // barrel 文件几乎全部由再导出构成，漏掉它等于对这类文件完全失明。
+    // 注意：不带 source 的 `export { x }` 只是重导出本地绑定，不能当成模块依赖。
+    if (candidate.type === 'ExportNamedDeclaration' || candidate.type === 'ExportAllDeclaration') {
+      const declaration = candidate as ExportNamedDeclaration | ExportAllDeclaration
+      if (declaration.source) {
+        imports.push({
+          kind: 'reexport',
+          value: declaration.source.value,
+          span: declaration.source.span,
+        })
+        // 带 source 的再导出内部只有 specifier，无需继续深挖。
+        return
+      }
     }
 
     if (candidate.type === 'TryStatement') {

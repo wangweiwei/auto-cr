@@ -43,9 +43,11 @@
   "bugs": {
     "url": "https://github.com/wangweiwei/auto-cr/issues"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "sideEffects": false,
   "dependencies": {
-    "@swc/core": "~1.15.24",
     "@swc/wasm": "~1.15.24",
     "auto-cr-rules": "workspace:*",
     "commander": "^14.0.3",
