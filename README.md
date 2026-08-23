@@ -22,7 +22,7 @@
 
 ## Feature Highlights (Automated Code Review & Static Analysis)
 
-- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, `no-n2-array-lookup`, `no-async-foreach`, `no-accumulating-spread`, `no-lost-error-cause`, `no-test-import-in-prod`, `no-self-package-import`, and `no-regexp-construction-in-hot-path`.
+- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, `no-n2-array-lookup`, `no-async-foreach`, `no-accumulating-spread`, `no-lost-error-cause`, `no-test-import-in-prod`, `no-self-package-import`, `no-regexp-construction-in-hot-path`, and `no-await-in-loop`.
 - **Extensible SDK**: `auto-cr-rules` exposes helpers like `defineRule` and `helpers.imports`, reducing the friction of authoring custom TypeScript / JavaScript rules.
 - **Workspace Friendly**: Manage both the CLI and rule package via pnpm workspaces and validate the full pipeline with a single build.
 - **Publishing Toolkit**: Version bump scripts and npm publish commands keep both packages in sync.
@@ -201,6 +201,7 @@ module.exports = {
 - [Rule: no-test-import-in-prod](./docs/no-test-import-in-prod.md)
 - [Rule: no-self-package-import](./docs/no-self-package-import.md)
 - [Rule: no-regexp-construction-in-hot-path](./docs/no-regexp-construction-in-hot-path.md)
+- [Rule: no-await-in-loop](./docs/no-await-in-loop.md)
 
 ## Writing Custom Rules
 
@@ -291,6 +292,7 @@ examples/
   noTestImportInProd     # Example for test imports in production code
   noSelfPackageImport    # Example for importing a package by its own name
   noRegexpConstructionInHotPath # Example for RegExp construction in hot paths
+  noAwaitInLoop          # Example for sequential await in loops
 ```
 
 Essential scripts:

@@ -116,6 +116,7 @@ export interface RuleMessages {
   noTestImportInProd(params: { value: string }): string
   noSelfPackageImport(params: { value: string; packageName: string }): string
   noRegexpConstructionInHotPath(params: { pattern: string }): string
+  noAwaitInLoop(): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。

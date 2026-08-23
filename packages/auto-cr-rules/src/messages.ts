@@ -28,6 +28,7 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `通过包名 "${value}" 导入了自己所在的包 "${packageName}"，会绕过源码解析到安装/构建产物，造成代码陈旧、模块双实例与隐式循环。`,
     noRegexpConstructionInHotPath: ({ pattern }) =>
       `热路径中用常量模式构造正则 "${pattern}"，每次迭代都会重新编译；请提升到循环/回调外复用。`,
+    noAwaitInLoop: () => '循环体内逐次 await，每轮都要等上一轮完成；若各轮互不依赖，可改为并发执行。',
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -58,6 +59,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `"${value}" imports the module's own package "${packageName}" by name; this bypasses the source tree and resolves to the installed/built copy, causing stale code, duplicate module instances and hidden cycles.`,
     noRegexpConstructionInHotPath: ({ pattern }) =>
       `RegExp is built from the constant pattern "${pattern}" inside a hot path and recompiled on every iteration; hoist it out of the loop/callback and reuse it.`,
+    noAwaitInLoop: () =>
+      'Awaiting inside a loop serializes the iterations; if they are independent, run them concurrently instead.',
   },
 }
 

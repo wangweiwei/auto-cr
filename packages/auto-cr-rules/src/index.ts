@@ -38,4 +38,5 @@ export {
   noTestImportInProd,
   noSelfPackageImport,
   noRegexpConstructionInHotPath,
+  noAwaitInLoop,
 } from './rules'

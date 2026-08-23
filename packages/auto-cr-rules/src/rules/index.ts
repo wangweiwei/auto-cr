@@ -14,6 +14,7 @@ import { noLostErrorCause } from './noLostErrorCause'
 import { noTestImportInProd } from './noTestImportInProd'
 import { noSelfPackageImport } from './noSelfPackageImport'
 import { noRegexpConstructionInHotPath } from './noRegexpConstructionInHotPath'
+import { noAwaitInLoop } from './noAwaitInLoop'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -32,6 +33,7 @@ export const builtinRules: Rule[] = [
   noTestImportInProd,
   noSelfPackageImport,
   noRegexpConstructionInHotPath,
+  noAwaitInLoop,
 ]
 
 export {
@@ -50,4 +52,5 @@ export {
   noTestImportInProd,
   noSelfPackageImport,
   noRegexpConstructionInHotPath,
+  noAwaitInLoop,
 }
