@@ -43,4 +43,5 @@ export {
   noCollectionRebuildInHotPath,
   noNPlusOneQuery,
   noLocaleFormatInHotPath,
+  noLayoutThrashing,
 } from './rules'

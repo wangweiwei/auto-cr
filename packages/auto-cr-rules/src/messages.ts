@@ -37,6 +37,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `热路径中逐条执行数据访问 ${api}：集合有 N 条就会产生 N 次数据库/缓存往返（N+1 查询），数据量增长后延迟与连接占用随之线性放大。`,
     noLocaleFormatInHotPath: ({ method, intl }) =>
       `热路径中带 locale/options 调用 ${method}，每次调用都会在内部新建一个 Intl 格式化器，批量处理时开销显著；请在循环/回调外创建一次 ${intl} 并复用。`,
+    noLayoutThrashing: ({ read }) =>
+      `同一轮循环/数组回调里既修改样式或 DOM、又读取布局信息 ${read}：每次读取都会迫使浏览器立即同步重排，n 轮就是 n 次重排（布局抖动）。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -77,6 +79,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Data access ${api} runs once per item in a hot path: N items mean N database/cache round-trips (the N+1 query problem), so latency and connection usage grow linearly with the data.`,
     noLocaleFormatInHotPath: ({ method, intl }) =>
       `Calling ${method} with locales/options in a hot path creates a new Intl formatter on every call, which is costly across many items; create one ${intl} outside the loop/callback and reuse it.`,
+    noLayoutThrashing: ({ read }) =>
+      `Layout is read (${read}) in the same loop/callback iteration that writes styles or the DOM: every read forces a synchronous reflow, so n iterations mean n reflows (layout thrashing).`,
   },
 }
 

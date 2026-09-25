@@ -19,6 +19,7 @@ import { noNonLiteralDynamicImport } from './noNonLiteralDynamicImport'
 import { noCollectionRebuildInHotPath } from './noCollectionRebuildInHotPath'
 import { noNPlusOneQuery } from './noNPlusOneQuery'
 import { noLocaleFormatInHotPath } from './noLocaleFormatInHotPath'
+import { noLayoutThrashing } from './noLayoutThrashing'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -42,6 +43,7 @@ export const builtinRules: Rule[] = [
   noCollectionRebuildInHotPath,
   noNPlusOneQuery,
   noLocaleFormatInHotPath,
+  noLayoutThrashing,
 ]
 
 export {
@@ -65,4 +67,5 @@ export {
   noCollectionRebuildInHotPath,
   noNPlusOneQuery,
   noLocaleFormatInHotPath,
+  noLayoutThrashing,
 }
