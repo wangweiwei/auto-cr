@@ -138,6 +138,7 @@ export interface RuleMessages {
   noLocaleFormatInHotPath(params: { method: string; intl: string }): string
   noLayoutThrashing(params: { read: string }): string
   noJsonStringifyComparison(): string
+  noLossyErrorSerialization(params: { name: string; form: string }): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。

@@ -22,7 +22,7 @@
 
 ## 特性亮点（自动化代码审查 & 静态代码分析）
 
-- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`、`no-async-foreach`、`no-accumulating-spread`、`no-lost-error-cause`、`no-test-import-in-prod`、`no-self-package-import`、`no-regexp-construction-in-hot-path`、`no-await-in-loop`、`no-collection-rebuild-in-hot-path`、`no-n-plus-one-query`、`no-locale-format-in-hot-path`、`no-layout-thrashing`、`no-json-stringify-comparison`、`no-non-literal-dynamic-import`（默认关闭）。
+- **内置规则库**：默认集成 SWC AST 静态分析规则，例如 `no-deep-relative-imports`、`no-circular-dependencies`、`no-swallowed-errors`、`no-layer-violations`、`no-cross-package-private-imports`、`no-catastrophic-regex`、`no-blocking-api-in-hot-path`、`no-deep-clone-in-loop`、`no-n2-array-lookup`、`no-async-foreach`、`no-accumulating-spread`、`no-lost-error-cause`、`no-test-import-in-prod`、`no-self-package-import`、`no-regexp-construction-in-hot-path`、`no-await-in-loop`、`no-collection-rebuild-in-hot-path`、`no-n-plus-one-query`、`no-locale-format-in-hot-path`、`no-layout-thrashing`、`no-json-stringify-comparison`、`no-lossy-error-serialization`、`no-non-literal-dynamic-import`（默认关闭）。
 - **可扩展 SDK**：`auto-cr-rules` 暴露 `defineRule`、`helpers.imports` 等工具，降低编写 TypeScript / JavaScript 自定义规则的复杂度。
 - **工作区管理**：使用 pnpm workspace 同时管理 CLI 与规则包，一次构建即可验证完整流程。
 - **发布友好**：内置版本递增脚本与 npm 发布命令，保持两个包的版本同步。
@@ -222,6 +222,7 @@ module.exports = {
 - [规则：no-locale-format-in-hot-path](./docs/no-locale-format-in-hot-path.md)
 - [规则：no-layout-thrashing](./docs/no-layout-thrashing.md)
 - [规则：no-json-stringify-comparison](./docs/no-json-stringify-comparison.md)
+- [规则：no-lossy-error-serialization](./docs/no-lossy-error-serialization.md)
 
 ## 编写自定义规则
 
@@ -319,6 +320,7 @@ examples/
   noLocaleFormatInHotPath # 热路径本地化格式化示例
   noLayoutThrashing      # 布局抖动示例
   noJsonStringifyComparison # 用 JSON.stringify 判等示例
+  noLossyErrorSerialization # 错误对象序列化丢信息示例
 ```
 
 核心脚本：

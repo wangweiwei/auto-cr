@@ -21,6 +21,7 @@ import { noNPlusOneQuery } from './noNPlusOneQuery'
 import { noLocaleFormatInHotPath } from './noLocaleFormatInHotPath'
 import { noLayoutThrashing } from './noLayoutThrashing'
 import { noJsonStringifyComparison } from './noJsonStringifyComparison'
+import { noLossyErrorSerialization } from './noLossyErrorSerialization'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -46,6 +47,7 @@ export const builtinRules: Rule[] = [
   noLocaleFormatInHotPath,
   noLayoutThrashing,
   noJsonStringifyComparison,
+  noLossyErrorSerialization,
 ]
 
 export {
@@ -71,4 +73,5 @@ export {
   noLocaleFormatInHotPath,
   noLayoutThrashing,
   noJsonStringifyComparison,
+  noLossyErrorSerialization,
 }

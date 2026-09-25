@@ -41,6 +41,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `同一轮循环/数组回调里既修改样式或 DOM、又读取布局信息 ${read}：每次读取都会迫使浏览器立即同步重排，n 轮就是 n 次重排（布局抖动）。`,
     noJsonStringifyComparison: () =>
       '用 JSON.stringify 的结果判断相等并不可靠：结果依赖属性顺序（内容相同、构造顺序不同会判为不等），还会丢弃 undefined 与函数、改写 NaN / Date / Map / Set，且每次比较都要完整序列化两个对象。',
+    noLossyErrorSerialization: ({ name, form }) =>
+      `错误对象 "${name}" 经 ${form} 处理后会丢失关键信息：Error 的 message、stack（以及 cause）都是不可枚举属性，JSON.stringify、对象展开和 Object.assign 都读不到，结果通常只剩 "{}"。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -85,6 +87,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Layout is read (${read}) in the same loop/callback iteration that writes styles or the DOM: every read forces a synchronous reflow, so n iterations mean n reflows (layout thrashing).`,
     noJsonStringifyComparison: () =>
       'Comparing JSON.stringify results is not a reliable equality check: the output depends on property order (equal objects built in a different order compare unequal), drops undefined and functions, coerces NaN / Date / Map / Set, and serializes both values on every comparison.',
+    noLossyErrorSerialization: ({ name, form }) =>
+      `Error "${name}" loses its key information through ${form}: message, stack (and cause) are non-enumerable, so JSON.stringify, object spread and Object.assign skip them and usually produce just "{}".`,
   },
 }
 

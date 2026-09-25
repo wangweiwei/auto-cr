@@ -45,4 +45,5 @@ export {
   noLocaleFormatInHotPath,
   noLayoutThrashing,
   noJsonStringifyComparison,
+  noLossyErrorSerialization,
 } from './rules'
