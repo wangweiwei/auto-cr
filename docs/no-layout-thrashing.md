@@ -7,8 +7,9 @@
 
 ## 2. 适用范围
 - 浏览器端 JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`forEach` / `map` 等）。一轮迭代内的嵌套循环、嵌套回调一并计入；循环内定义的事件处理函数等普通函数不计入。
-- 布局读取：`offsetWidth/Height/Top/Left/Parent`、`clientWidth/Height/Top/Left`、`scrollWidth/Height/Top/Left`、`innerText` 的读取，以及 `getBoundingClientRect()`、`getClientRects()`、`getComputedStyle()`、`getBBox()` 调用。
-- 布局写入：`xxx.style.* =` 与 `style.setProperty/removeProperty()`、`classList.add/remove/toggle/replace()`、`className` / `innerHTML` / `outerHTML` / `textContent` / `innerText` / `scrollTop` / `scrollLeft` 赋值，以及 `appendChild`、`insertBefore`、`removeChild`、`replaceChild`、`insertAdjacentHTML/Element/Text`、`replaceChildren`、`replaceWith`、`setAttribute`、`removeAttribute`、`toggleAttribute` 调用。
+- 布局读取：`offsetWidth/Height/Top/Left/Parent`、`clientWidth/Height/Top/Left`、`scrollWidth/Height/Top/Left`、`innerText` 的读取，`scrollTop` / `scrollLeft` 的赋值（赋值前浏览器同样要先完成布局，但它只改滚动位置、不让布局失效，因此按“读取”处理），以及 `getBoundingClientRect()`、`getClientRects()`、`getComputedStyle()`、`getBBox()` 调用。
+- 布局写入：`xxx.style.* =` 与 `style.setProperty/removeProperty()`、`classList.add/remove/toggle/replace()`（含 `items[i].classList`）、`className` / `innerHTML` / `outerHTML` / `textContent` / `innerText` 赋值，以及 `appendChild`、`insertBefore`、`removeChild`、`replaceChild`、`insertAdjacentHTML/Element/Text`、`replaceChildren`、`replaceWith`、`setAttribute`、`removeAttribute`、`toggleAttribute` 调用。
+- 写入尚未挂到文档上的节点不算布局写入：本轮用 `createElement` / `createElementNS` / `createTextNode` / `cloneNode` / `importNode` 新建的节点，以及文件内由 `createDocumentFragment()` 初始化的变量。
 
 ## 3. 规则说明
 - 约束：同一轮迭代内不得既写入样式/DOM、又读取布局信息。
@@ -46,7 +47,8 @@ for (const item of items) {
 
 ## 5. 例外/豁免
 - 规则按属性名/方法名识别，不校验对象是否真的是 DOM 元素；普通对象上同名的 `scrollTop`、`clientWidth` 等属性也会参与判断。
-- 部分算法天然需要逐步读写（例如逐级滚动祖先元素的 scrollIntoView 实现、逐行测量的虚拟列表）。确认无法拆分时，可在该处关闭本规则，或用 `requestAnimationFrame` / fastdom 之类的读写调度库改写。
+- 部分算法天然需要逐步读写（例如逐行测量的虚拟列表）。确认无法拆分时，可在该处关闭本规则，或用 `requestAnimationFrame` / fastdom 之类的读写调度库改写。只改 `scrollTop` / `scrollLeft` 的逐级滚动（scrollIntoView 的常见实现）不会触发本规则。
+- 规则不分析控制流：读取与写入位于互斥的分支（`if (measure) { read } else { write }`），或写入之后紧跟 `break` / `return` 时，实际不会交替执行，但仍会上报；可在该处关闭本规则。
 - `append` / `prepend` / `remove` 等通用方法名（`FormData`、`URLSearchParams` 也有）不计为布局写入，因此这类写入不会触发本规则。
 
 ## 6. 与工具的映射

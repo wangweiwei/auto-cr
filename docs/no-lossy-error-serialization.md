@@ -11,7 +11,7 @@
 - 被识别为“错误对象”的绑定：
   - `catch (err)` 的参数；
   - `promise.catch((err) => ...)` 与 `promise.then(onOk, (err) => ...)` 中拒绝回调的第一个参数；
-  - 作为回调传入、第一个参数名为 `err` / `error` 的函数（Node 风格回调，如 `fs.readFile(p, (err, data) => ...)`）。参数带有明显不是错误的类型标注（如 `error: string`）时除外。
+  - 作为回调传入、第一个参数名为 `err` / `error` 的函数（Node 风格回调，如 `fs.readFile(p, (err, data) => ...)`）。以下除外：参数的类型标注明显不是错误（只有 `unknown` / `any`、以 `Error` / `Exception` 结尾的类型或包含它们的联合类型才算错误）；`map` / `forEach` / `filter` / `reduce` 等数组迭代回调（`result.errors.map((error) => ...)` 的参数是元素，不是 Error）。
 - 在上述绑定的作用域内检查以下用法：
   - `JSON.stringify(err)`，以及把错误作为属性值的 `JSON.stringify({ err })` / `JSON.stringify({ error: err })`；
   - 对象展开 `{ ...err }`；
@@ -22,8 +22,13 @@
 - 约束：不得用只处理可枚举属性的方式序列化/复制错误对象。
 - 判定方式：
   - 错误绑定来自共享分析索引 `analysis.tryStatements` 与 `analysis.callExpressions`，只遍历这些绑定所在的函数体/catch 块。
-  - 嵌套函数或嵌套 catch 重新绑定同名参数时，内部的同名标识符不再视为该错误对象。
-  - 以下写法视为作者已处理不可枚举属性，不报：`JSON.stringify` 传了 replacer（如 `JSON.stringify(err, Object.getOwnPropertyNames(err))`）；对象字面量里同时显式写了 `message` 或 `stack` 键。
+  - 按词法作用域处理遮蔽：嵌套函数参数、块内 `const` / `let`、`for (const err of ...)`、嵌套 `catch (err)` 重新声明同名变量时，其内部的同名标识符不再视为该错误对象。
+  - 绑定被重新赋值（`err = normalize(err)`）之后的代码不再检查。
+  - 以下写法视为作者已处理不可枚举属性，不报：
+    - `JSON.stringify` 传了非 `null` / `undefined` 的 replacer（如 `JSON.stringify(err, Object.getOwnPropertyNames(err))`）；
+    - 展开错误的对象字面量里显式写了 `message` 或 `stack` 键（`{ ...err, message: err.message }`，也包括 `['message']` 这类静态计算键）；
+    - `Object.assign(target, err, { message: err.message })`：同一调用里另有显式带 `message` / `stack` 键的对象字面量；
+    - 把错误作为属性值时（`{ error: err }`），同一对象的 `message` / `stack` 取自这个错误本身（`{ message: err.message, error: err }`）。与错误无关的文案（`{ message: 'Server error', error }`）补不回嵌套错误里丢失的字段，仍会上报。
 - 严重程度：warning（默认 tag：`base`）。
 - 可配置项：当前版本无可配置参数；可通过配置文件关闭或调整严重级别。
 
@@ -62,7 +67,7 @@ res.status(500).json({ message: error.message })           // 只返回需要暴
 ## 5. 例外/豁免
 - 自定义了 `toJSON()` 的错误类（例如 axios 的 `AxiosError`）经 `JSON.stringify` 可以得到有用的内容，但规则无法静态得知，仍会上报；确认是这类错误时可在该处关闭本规则。
 - Fastify 的 `reply.send(err)` 会专门处理 Error，不在检测范围内。
-- 第一个参数名为 `err` / `error` 但实际不是 Error 的回调（例如事件载荷恰好叫 error）也可能被误报；为其补充类型标注即可排除。
+- 第一个参数名为 `err` / `error` 但实际不是 Error 的回调（例如事件载荷恰好叫 error）也可能被误报；为其补充类型标注（如 `(error: string) => ...`）即可排除。注意类型名以 `Error` / `Exception` 结尾的标注（如 `ValidationError`）仍按错误对象处理。
 
 ## 6. 与工具的映射
 - 规则 ID：`no-lossy-error-serialization`

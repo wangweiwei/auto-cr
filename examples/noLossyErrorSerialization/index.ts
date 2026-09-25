@@ -4,6 +4,8 @@ declare const res: {
 }
 declare function doWork(): Promise<void>
 declare function readConfig(callback: (err: Error | null, data?: string) => void): void
+declare const validator: { on(event: string, listener: (error: string) => void): void }
+declare const result: { errors: Array<{ path: string; message: string }> }
 
 // JSON.stringify(err) prints "{}".
 export function run(): void {
@@ -59,7 +61,19 @@ export function runSafe(): void {
   }
 }
 
-// A string parameter named error is not an Error object.
-export function showError(error: string): string {
-  return JSON.stringify(error)
+// A callback parameter annotated with a non-error type is not an Error object.
+validator.on('invalid', (error: string) => {
+  logger.error(JSON.stringify({ error }))
+})
+
+// Array iteration callbacks receive elements, not errors.
+export const issues = result.errors.map((error) => JSON.stringify(error))
+
+// message / stack taken from the error itself travel alongside the nested object.
+export async function handlerSafe(): Promise<void> {
+  try {
+    await doWork()
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message, error })
+  }
 }

@@ -13,7 +13,8 @@
 - 约束：热路径中不得以不变的 locale / options 调用上述方法。
 - 判定方式：
   - 复用共享分析的循环与回调索引，按作用域遍历热路径中的调用。
-  - 只看 locale / options 参数（`localeCompare` 从第二个参数算起）：至少有一个不是 `undefined`，且全部在迭代之间不变（字面量，或未在本轮绑定、未被修改、未在文件中被重新赋值的变量）时才上报。
+  - 只看 locale / options 参数（`localeCompare` 从第二个参数算起）：至少有一个不是 `undefined` / `void 0`，且全部在迭代之间不变（字面量，或未在本轮绑定、未被修改或传给未知函数、未在文件中被重新赋值的变量；作用域内有 `await` / `yield` 时引用变量的参数不算不变）时才上报。
+  - 位于 `throw`（外层没有 `try`）或循环中 `return` 语句里的调用不报：每次进入作用域至多执行一次。
   - 不带参数的调用不报：引擎通常会缓存默认格式化器。locale / options 随迭代变化（例如 `row.amount.toLocaleString(row.locale)`）时也不报：无法简单提升，需要按 locale 做缓存。
 - 直接写 `new Intl.NumberFormat(...)` 的情况已有 ESLint 插件覆盖（react-doctor 的 `js-hoist-intl`），排序比较函数中的 `localeCompare` 也有 `@e18e/prefer-static-collator`，本规则不重复这两类。
 - 严重程度：optimizing（默认 tag：`performance`）。
@@ -45,6 +46,7 @@ rows.map((row) => row.amount.toLocaleString(row.locale))   // locale 逐行变�
 ## 5. 例外/豁免
 - 规则不校验接收者类型：自定义对象上同名的 `toLocaleString(...)` 方法也会被报出，可在对应位置关闭本规则。
 - options 对象在循环体内用字面量重新声明（`const opts = {...}`）时，按“每轮新绑定”处理而不上报；把 options 与格式化器一起提升到循环外即可。
+- 经由别名修改 options（`const o = opts; o.currency = row.currency`）静态分析看不到，此时会误报，可在该处关闭本规则。
 
 ## 6. 与工具的映射
 - 规则 ID：`no-locale-format-in-hot-path`

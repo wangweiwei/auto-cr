@@ -1,21 +1,26 @@
-import type { Span } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
 import {
+  asMember,
   describeExpression,
+  findConsumer,
   getCalledMethodName,
-  getNameChain,
   getPropertyName,
-  isTransparentWrapper,
+  getQualifiedName,
+  isReferencePosition,
+  isWriteTarget,
   stripWrappers,
+  walkAst,
   walkWithAncestors,
   type CallNode,
   type MemberNode,
   type TypedNode,
 } from './utils/ast'
 import {
+  FRESH_COLLECTION_METHODS,
   collectHotScopes,
   createInvarianceChecker,
   isInLoopCondition,
+  isLeavingScope,
   walkScopeOwnRegion,
   type HotScope,
 } from './utils/hotScopes'
@@ -28,6 +33,7 @@ import {
 // 只报两类只读消费方式，避免误伤“每轮需要一份新副本”的写法：
 // - 构建结果立刻被查找/取长度/按下标读取（.has / .includes / .length / [0] ...）；
 // - 构建结果赋给本轮的 const，且该常量在本作用域内只被上述方式读取。
+// throw 里、循环中 return 里的构建每次进入作用域至多执行一次，不报。
 export const noCollectionRebuildInHotPath = defineRule(
   'no-collection-rebuild-in-hot-path',
   { tag: 'performance', severity: RuleSeverity.Optimizing },
@@ -42,45 +48,38 @@ export const noCollectionRebuildInHotPath = defineRule(
 
     for (const scope of scopes) {
       walkScopeOwnRegion(scope, scopeNodes, (node, ancestors) => {
-        if (!isBuilderNode(node)) {
+        if (
+          !isBuilderNode(node) ||
+          isInLoopCondition(scope, node, ancestors) ||
+          isLeavingScope(scope, ancestors)
+        ) {
           return true
         }
-        // 只判定最外层的构建表达式：new Set(admins.map(...)) 报 new Set，不再单独报内层的 map。
         // 先做局部的消费方式判断，再做代价更高的不变性分析。
+        // 未上报时继续检查它的接收者/参数：内层构建直接作为接收者或参数，不会被只读消费，不会重复上报。
         if (
-          !isInLoopCondition(scope, node, ancestors) &&
-          isConsumedReadOnly(node, ancestors, scope) &&
-          checker.isInvariant(node, scope, { allowCall: isBuilderNode })
+          !isConsumedReadOnly(node, ancestors, scope) ||
+          !checker.isInvariant(node, scope, { allowCall: isInvariantCall })
         ) {
-          const code = describeBuilder(node)
-          helpers.reportViolation(
-            {
-              description: messages.noCollectionRebuildInHotPath({ code }),
-              code,
-              suggestions: buildSuggestions(language, code),
-              span: (node as { span?: Span }).span,
-            },
-            (node as { span?: Span }).span
-          )
+          return true
         }
+        const code = describeBuilder(node)
+        helpers.reportViolation(
+          {
+            description: messages.noCollectionRebuildInHotPath({ code }),
+            code,
+            suggestions: buildSuggestions(language, code),
+            span: node.span,
+          },
+          node.span
+        )
+        // 已上报的外层构建不再深入：new Set(admins.map(...)) 只报 new Set。
         return false
       })
     }
   }
 )
 
-// 由已有数据派生出新集合的方法。
-const MEMBER_BUILDERS = new Set([
-  'map',
-  'filter',
-  'flatMap',
-  'flat',
-  'split',
-  'concat',
-  'slice',
-  'toSorted',
-  'toReversed',
-])
 // sort / reverse 会原地修改接收者：只有接收者本身就是新建的集合时，整个表达式才是“构建”。
 const IN_PLACE_BUILDERS = new Set(['sort', 'reverse'])
 const STATIC_BUILDERS = new Set([
@@ -91,23 +90,23 @@ const STATIC_BUILDERS = new Set([
   'Array.from',
 ])
 const CONSTRUCTOR_BUILDERS = new Set(['Set', 'Map'])
+// 无参的 keys() / values() / entries() 只是把 Map / Set / 数组转成迭代器：[...byId.keys()] 与 [...seen] 等价。
+const ITERATOR_METHODS = new Set(['keys', 'values', 'entries'])
 
 // 只读消费：查找、判断、取长度、拼接成字符串。遍历（for...of / forEach）本身就是 O(m)，重建只多一个常数因子，不在范围内。
 const READ_METHODS = new Set([
   'has',
-  'get',
   'includes',
   'indexOf',
   'lastIndexOf',
-  'find',
   'findIndex',
-  'findLast',
   'findLastIndex',
   'some',
   'every',
-  'at',
   'join',
 ])
+// 取出元素的读取：元素若是每轮新建的对象（map 回调返回 [] / {}），取出后可能被修改或传出，不能算只读。
+const ELEMENT_READ_METHODS = new Set(['get', 'find', 'findLast', 'at'])
 const READ_PROPERTIES = new Set(['length', 'size'])
 
 type BuilderShape = TypedNode & {
@@ -116,8 +115,11 @@ type BuilderShape = TypedNode & {
   elements?: Array<{ spread?: unknown; expression: TypedNode } | null>
 }
 
+const isStaticBuilderCall = (call: CallNode): boolean =>
+  STATIC_BUILDERS.has(getQualifiedName(call.callee) ?? '')
+
 // 只看节点本身的形态，不剥包装：否则 (new Set(ids)) 的括号和里面的 new 会各判一次。
-const isBuilderNode = (raw: TypedNode | CallNode): boolean => {
+const isBuilderNode = (raw: TypedNode): boolean => {
   const node = raw as BuilderShape
   switch (node.type) {
     case 'NewExpression': {
@@ -125,27 +127,22 @@ const isBuilderNode = (raw: TypedNode | CallNode): boolean => {
       const [first] = node.arguments ?? []
       return Boolean(
         callee?.type === 'Identifier' &&
-        callee.value &&
-        CONSTRUCTOR_BUILDERS.has(callee.value) &&
+        CONSTRUCTOR_BUILDERS.has(callee.value ?? '') &&
         first &&
         !first.spread
       )
     }
     case 'CallExpression': {
       const call = node as CallNode
-      const chain = getNameChain(call.callee)
-      if (chain && STATIC_BUILDERS.has(chain.join('.'))) {
+      if (isStaticBuilderCall(call)) {
         return Boolean(call.arguments?.length)
       }
       const method = getCalledMethodName(call)
-      if (!method) {
-        return false
-      }
-      if (MEMBER_BUILDERS.has(method)) {
+      if (method && FRESH_COLLECTION_METHODS.has(method)) {
         return true
       }
-      if (IN_PLACE_BUILDERS.has(method)) {
-        const receiver = stripWrappers((stripWrappers(call.callee) as MemberNode).object)
+      if (method && IN_PLACE_BUILDERS.has(method)) {
+        const receiver = stripWrappers(asMember(call.callee)?.object)
         return Boolean(receiver && isBuilderNode(receiver))
       }
       return false
@@ -160,43 +157,70 @@ const isBuilderNode = (raw: TypedNode | CallNode): boolean => {
   }
 }
 
-// 向上跳过括号、TS 断言、可选链外壳，返回真正消费该节点的父节点及其下标。
-const findConsumer = (
-  node: TypedNode,
-  ancestors: ReadonlyArray<TypedNode>,
-  fromIndex: number
-): { child: TypedNode; parent: TypedNode | undefined; index: number } => {
-  let child = node
-  let index = fromIndex
-  while (index >= 0 && isTransparentWrapper(ancestors[index])) {
-    child = ancestors[index]
-    index -= 1
+const isInvariantCall = (call: CallNode): boolean =>
+  isBuilderNode(call) ||
+  (call.type === 'CallExpression' &&
+    !call.arguments?.length &&
+    ITERATOR_METHODS.has(getCalledMethodName(call) ?? ''))
+
+// 值是否每次求值都新建一个可变对象。条目模式下（new Map / Object.fromEntries 的 [key, value]）只看 value。
+const isFreshValue = (expression: unknown, entries: boolean): boolean => {
+  const node = stripWrappers(expression) as BuilderShape | null
+  switch (node?.type) {
+    case 'ObjectExpression':
+    case 'NewExpression':
+    case 'FunctionExpression':
+    case 'ArrowFunctionExpression':
+    case 'ClassExpression':
+      return true
+    case 'ArrayExpression': {
+      const elements = node.elements ?? []
+      if (entries && elements.length === 2 && !elements[1]?.spread) {
+        return isFreshValue(elements[1]?.expression, false)
+      }
+      return true
+    }
+    default:
+      return false
   }
-  return { child, parent: ancestors[index], index }
 }
 
-// 节点是否是赋值、自增或 delete 的目标。
-const isWriteTarget = (child: TypedNode, parent: TypedNode | undefined): boolean => {
-  if (!parent) {
-    return false
+// 构建出的元素是否每轮新建：map 回调返回 [] / {} / new X，Array.from({ length }, () => [])，
+// new Map(keys.map((k) => [k, []]))，new Map([['open', []]])。
+const yieldsFreshElements = (builder: TypedNode): boolean => {
+  const call = builder as CallNode
+  const entries =
+    (builder.type === 'NewExpression' && getQualifiedName(call.callee) === 'Map') ||
+    (builder.type === 'CallExpression' && getQualifiedName(call.callee) === 'Object.fromEntries')
+  if (entries) {
+    const literal = stripWrappers(call.arguments?.[0]?.expression) as BuilderShape | null
+    if (
+      literal?.type === 'ArrayExpression' &&
+      (literal.elements ?? []).some((element) => isFreshValue(element?.expression, true))
+    ) {
+      return true
+    }
   }
-  const shape = parent as TypedNode & { left?: unknown; argument?: unknown; operator?: string }
-  if (parent.type === 'AssignmentExpression') {
-    return shape.left === child
-  }
-  if (parent.type === 'UpdateExpression') {
-    return shape.argument === child
-  }
-  return (
-    parent.type === 'UnaryExpression' && shape.operator === 'delete' && shape.argument === child
-  )
+  let fresh = false
+  walkAst(builder, (raw) => {
+    const node = raw as TypedNode & { body?: TypedNode; argument?: unknown }
+    if (node.type === 'ArrowFunctionExpression' && node.body?.type !== 'BlockStatement') {
+      fresh ||= isFreshValue(node.body, entries)
+    } else if (node.type === 'ReturnStatement') {
+      fresh ||= isFreshValue(node.argument, entries)
+    }
+    return !fresh
+  })
+  return fresh
 }
 
 // 节点以只读方式被消费：作为 .has()/.includes() 等查找方法的接收者，或被读取 .length/.size/[i]。
+// freshElements 为真时，取出元素的读取（.get / .find / .at / [i]）不算只读。
 const isReadOnlyUse = (
   node: TypedNode,
   ancestors: ReadonlyArray<TypedNode>,
-  fromIndex: number
+  fromIndex: number,
+  freshElements: boolean
 ): boolean => {
   const { child, parent, index } = findConsumer(node, ancestors, fromIndex)
   if (parent?.type !== 'MemberExpression' || (parent as MemberNode).object !== child) {
@@ -210,8 +234,8 @@ const isReadOnlyUse = (
     outer.parent?.type === 'CallExpression' &&
     stripWrappers((outer.parent as CallNode).callee) === member
 
-  if (name && READ_METHODS.has(name)) {
-    return isCallee
+  if (name && (READ_METHODS.has(name) || ELEMENT_READ_METHODS.has(name))) {
+    return isCallee && !(freshElements && ELEMENT_READ_METHODS.has(name))
   }
   if (isCallee || isWriteTarget(outer.child, outer.parent)) {
     return false
@@ -220,7 +244,7 @@ const isReadOnlyUse = (
     return true
   }
   // 按下标读取：list[0] / list[i]。
-  return member.property.type === 'Computed' && name === null
+  return !freshElements && member.property.type === 'Computed' && name === null
 }
 
 // 构建结果的消费方式是否只读：直接查找，或赋给本轮的 const 后只被查找。
@@ -229,11 +253,12 @@ const isConsumedReadOnly = (
   ancestors: ReadonlyArray<TypedNode>,
   scope: HotScope
 ): boolean => {
-  if (isReadOnlyUse(node, ancestors, ancestors.length - 1)) {
+  const freshElements = yieldsFreshElements(node)
+  if (isReadOnlyUse(node, ancestors, ancestors.length - 1, freshElements)) {
     return true
   }
 
-  const { child, parent, index } = findConsumer(node, ancestors, ancestors.length - 1)
+  const { child, parent, index } = findConsumer(node, ancestors)
   const declarator = parent as
     | (TypedNode & { id?: TypedNode & { value?: string }; init?: unknown })
     | undefined
@@ -265,9 +290,12 @@ const isConsumedReadOnly = (
           return true
         }
         references += 1
-        if (!isReadOnlyUse(candidate, candidateAncestors, candidateAncestors.length - 1)) {
-          readOnly = false
-        }
+        readOnly = isReadOnlyUse(
+          candidate,
+          candidateAncestors,
+          candidateAncestors.length - 1,
+          freshElements
+        )
         return true
       },
       [scope.node]
@@ -276,42 +304,20 @@ const isConsumedReadOnly = (
   return readOnly && references > 0
 }
 
-// 标识符是否处在“引用”位置：obj.name 的属性名、{ name: v } 的键、声明本身都不算引用。
-const isReferencePosition = (
-  identifier: TypedNode,
-  ancestors: ReadonlyArray<TypedNode>
-): boolean => {
-  const parent = ancestors[ancestors.length - 1] as
-    | (TypedNode & { property?: unknown; key?: unknown; id?: unknown })
-    | undefined
-  if (!parent) {
-    return true
-  }
-  if (parent.type === 'MemberExpression') {
-    return parent.property !== identifier
-  }
-  if (parent.type === 'KeyValueProperty') {
-    return parent.key !== identifier
-  }
-  if (parent.type === 'VariableDeclarator') {
-    return parent.id !== identifier
-  }
-  return true
-}
-
 // 报告中展示的构建形态：new Set(ids)、admins.map(...)、Object.keys(config)、[...source]。
 const describeBuilder = (raw: TypedNode): string => {
   const node = raw as BuilderShape
   if (node.type === 'ArrayExpression') {
-    return `[...${describeExpression(node.elements?.[0]?.expression)}]`
+    const inner = describeExpression(node.elements?.[0]?.expression)
+    return inner === '...' ? '[...]' : `[...${inner}]`
   }
-  if (node.type === 'NewExpression' || node.type === 'CallExpression') {
-    const chain = getNameChain(node.callee)
+  if (
+    node.type === 'NewExpression' ||
+    (node.type === 'CallExpression' && isStaticBuilderCall(node as CallNode))
+  ) {
     const argument = node.arguments?.[0]?.expression
-    if (node.type === 'NewExpression' || (chain && STATIC_BUILDERS.has(chain.join('.')))) {
-      const prefix = node.type === 'NewExpression' ? 'new ' : ''
-      return `${prefix}${describeExpression(node.callee)}(${argument ? describeExpression(argument) : ''})`
-    }
+    const prefix = node.type === 'NewExpression' ? 'new ' : ''
+    return `${prefix}${describeExpression(node.callee)}(${argument ? describeExpression(argument) : ''})`
   }
   return describeExpression(node)
 }

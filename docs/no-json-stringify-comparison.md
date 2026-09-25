@@ -13,7 +13,7 @@
 ## 3. 规则说明
 - 约束：不得用两个 `JSON.stringify` 的结果判断相等。
 - 判定方式：复用共享分析索引 `analysis.binaryExpressions`，筛选相等/不等比较，两侧（去掉括号与 TS 断言后）都是 `JSON.stringify(x)` 时上报。
-- 任意一侧传了 replacer（第二个参数，且不是 `null` / `undefined`）时不报：数组形式的 replacer 会固定输出的键顺序，属于有意为之。
+- 任意一侧传了 replacer（第二个参数，且不是 `null` / `undefined` / `void 0`）时不报：数组形式的 replacer 会固定输出的键顺序，属于有意为之。
 - 严重程度：warning（默认 tag：`base`）。
 - 可配置项：当前版本无可配置参数；可通过配置文件关闭或调整严重级别。
 

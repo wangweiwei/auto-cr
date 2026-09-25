@@ -1,11 +1,5 @@
 import { RuleSeverity, defineRule } from '../types'
-import {
-  describeExpression,
-  getNameChain,
-  stripWrappers,
-  type CallNode,
-  type TypedNode,
-} from './utils/ast'
+import { asCall, describeExpression, getStringifiedValue, type TypedNode } from './utils/ast'
 
 // 检测用 JSON.stringify 的结果比较两个值是否“相等”：
 //   if (JSON.stringify(prev) === JSON.stringify(next)) { ... }
@@ -67,23 +61,6 @@ const EQUALITY_OPERATORS = new Set(['===', '==', '!==', '!='])
 
 // 表达式是 JSON.stringify(x)（且没有 replacer）时返回 x。
 const getStringifyArgument = (expression: unknown): TypedNode | null => {
-  const node = stripWrappers(expression)
-  if (node?.type !== 'CallExpression') {
-    return null
-  }
-  const call = node as CallNode
-  const chain = getNameChain(call.callee)
-  if (chain?.join('.') !== 'JSON.stringify') {
-    return null
-  }
-  const [value, replacer] = call.arguments ?? []
-  if (!value || value.spread || (replacer && !isNullish(replacer.expression))) {
-    return null
-  }
-  return value.expression
-}
-
-const isNullish = (expression: unknown): boolean => {
-  const node = stripWrappers(expression) as { type?: string; value?: string } | null
-  return node?.type === 'NullLiteral' || (node?.type === 'Identifier' && node.value === 'undefined')
+  const call = asCall(expression)
+  return call ? getStringifiedValue(call) : null
 }

@@ -6,12 +6,12 @@
 - ESLint 生态里只有通用的 `no-await-in-loop`，既不认识数据访问 API，也看不到 `map` 回调里的查询；本规则专门识别这类往返。
 
 ## 2. 适用范围
-- 按数据逐条迭代的热路径：`for...of` / `for...in`、条件里出现 `.length` / `.size` 的 `for` 循环、数组高阶方法回调（`map` / `forEach` / `filter` / `reduce` 等），以及它们内部嵌套的循环与回调。
+- 按数据逐条迭代的热路径：`for...of` / `for...in`、条件里出现 `.length` / `.size`（且该集合没有在循环中被整体换掉）的 `for` 循环、数组高阶方法回调（`map` / `forEach` / `filter` / `reduce` 等），以及它们内部嵌套的循环与回调。
 - 识别的数据访问（按 API 形态识别，不做类型推断）：
-  - 辨识度高的 ORM / 驱动方法：`findUnique` / `findFirst` / `findMany`（Prisma）、`findById` / `findOne` / `findOneAndUpdate` / `countDocuments`（Mongoose、MongoDB）、`findByPk` / `findAll` / `findOrCreate`（Sequelize）、`findOneBy` / `findOneOrFail` / `findAndCount`（TypeORM）、`$queryRaw` / `$executeRaw` 等；
-  - Prisma 风格的 `<prisma|db|tx>.<model>.<count|aggregate|groupBy|create|update|upsert|delete>`；
+  - 辨识度高的 ORM / 驱动方法：`findUnique` / `findFirst` / `findMany`（Prisma）、`findById` / `findOne` / `findOneAndUpdate` / `countDocuments` / `insertOne` / `replaceOne` / `deleteOne`（Mongoose、MongoDB）、`findByPk` / `findAll` / `findOrCreate`（Sequelize）、`findOneBy` / `findOneOrFail` / `findAndCount`（TypeORM）、`$queryRaw` / `$executeRaw`（含 `` prisma.$queryRaw`...` `` 模板写法）等；`updateOne` 不在其中（Redux Toolkit / NgRx 的 `entityAdapter.updateOne` 同名）；
+  - Prisma 风格的 `<client>.<model>.<count|aggregate|groupBy|create|update|upsert|delete>`，其中 `client` 为 `prisma` / `db` / `tx` 或名字含 `prisma` 的对象（如 `this.prismaService`）；
   - 名字以 `repo` / `repository` 结尾的仓储对象上的 `find` / `findBy` / `count` / `save` / `insert` / `update` / `delete` / `remove` 等；
-  - `db` / `pool` / `client` / `connection` / `knex` / `manager` 等连接对象上的 `query` / `execute`，且第一个参数像一条查询（SQL 字符串、名字含 sql/query 的变量、带 `text` / `sql` / `query` 键的对象）；
+  - `db` / `pool` / `client` / `connection` / `trx` / `queryRunner` / `manager` / `dataSource` 等连接对象，以及 `pgPool` / `dbClient` / `mysqlConnection` 这类“数据库名 + 连接类型”命名的对象上的 `query` / `execute`，且第一个参数像一条查询（SQL 字符串或拼接、名字含 sql/query 的变量、带 `text` / `sql` / `query` 键的对象）；Strapi 的模型 UID（`strapi.db.query('api::article.article')`）与 GraphQL 文档（`` gql`...` ``、`UserQuery`、带 `variables` 的对象）不算；
   - `redis` / `redisClient` 等 Redis 客户端上的单键命令（`mget` / `pipeline` / `multi` 等批量命令除外）；
   - `ruleOptions` 中额外声明的方法名与接收者名。
 
@@ -19,12 +19,14 @@
 - 约束：按数据逐条迭代时，不得在每一轮里单独发起数据访问。
 - 判定方式：
   - 先在共享分析索引 `analysis.hotPath.callExpressions` 中找出匹配数据访问形态的调用；没有候选的文件直接跳过。
-  - 再确认调用位于“按数据逐条迭代”的作用域内。以下作用域不算：`while` / `do...while`（分页、轮询、重试，每轮一次查询正是预期行为）；条件里不含 `.length` / `.size` 的 `for` 循环（如 `for (let page = 0; page < pages; page++)`）；遍历数组字面量、以数组字面量初始化的 `const`、全大写常量（`ROLES`、`SCHEDULED_RESOURCES`）或其 `Object.keys/values/entries` 的循环——迭代次数固定且很小。外层按数据迭代、内层遍历常量的嵌套写法仍会上报。
-  - 参数中已出现批量条件时视为分批查询，不报：对象键 `in` / `$in` / `$all` / `hasSome` / `hasEvery`，调用 `In(...)` / `Any(...)`（TypeORM），或 SQL 字符串中的 `IN (...)` / `ANY(...)`。
+  - 再确认调用位于“按数据逐条迭代”的作用域内。以下作用域不算：`while` / `do...while`（分页、轮询、重试，每轮一次查询正是预期行为）；条件里不含 `.length` / `.size` 的 `for` 循环（如 `for (let page = 0; page < pages; page++)`），以及在更新子句或循环体里整体替换该集合的 `for` 循环（`for (let rows = await find(); rows.length; rows = await find(...))` 这类分页）；遍历数组/对象字面量、以非空字面量初始化的 `const`、TS `enum`、全大写常量（`ROLES`、`SCHEDULED_RESOURCES`）或其 `Object.keys/values/entries` 的循环——迭代次数固定且很小。外层按数据迭代、内层遍历常量的嵌套写法仍会上报。
+  - 参数中已出现作用于变量的批量条件时视为分批查询，不报：对象键 `in` / `$in` / `hasSome` / `any`（含 Sequelize 的 `[Op.in]` / `[Op.any]`），调用 `In(...)` / `Any(...)`（TypeORM），或 SQL 字符串 / 模板中紧跟占位符或插值的 `IN (...)` / `ANY(...)`。作用于常量列表的条件（`status: { in: ['a', 'b'] }`、`IN ('a', 'b')`）只是普通过滤，仍会上报。
+  - 参数本身就是一批数据时不报：名字含 `chunk` / `batch` 的变量（可展开传入），或 `xs.slice(i, i + n)`。
+  - 同名的内存查找不报：第一个参数是函数（domutils 的 `findOne(test, nodes)`），或只传一个字符串（Vue Test Utils 的 `findAll('td')`）。
 - 严重程度：optimizing（默认 tag：`performance`）。
 - 可配置项（`ruleOptions`）：
   - `methods`：额外视为数据访问的方法名或函数名，例如 `["getUserById", "fetch"]`；
-  - `receivers`：额外视为数据访问客户端的接收者名，其上的任何方法调用都算一次往返，例如 `["api", "userService"]`。
+  - `receivers`：额外视为数据访问客户端的接收者名，其上的任何方法调用都算一次往返，例如 `["api", "userService"]`。只匹配直接接收者：`stripe.customers.retrieve(id)` 需要配置 `customers`。
   - HTTP 请求默认不在范围内（逐条请求有时没有批量接口可用）；需要时可把 `fetch`、`axios` 等加入上面两项。
 
 ```jsonc

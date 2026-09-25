@@ -1,7 +1,16 @@
-import type { Span } from '@swc/types'
 import { RuleSeverity, defineRule } from '../types'
-import { describeExpression, getCalledMethodName, stripWrappers, type CallNode } from './utils/ast'
-import { collectHotScopes, createInvarianceChecker, walkScopeOwnRegion } from './utils/hotScopes'
+import {
+  describeExpression,
+  getCalledMethodName,
+  isUndefinedExpression,
+  type CallNode,
+} from './utils/ast'
+import {
+  collectHotScopes,
+  createInvarianceChecker,
+  isLeavingScope,
+  walkScopeOwnRegion,
+} from './utils/hotScopes'
 
 // 检测热路径中带 locale / options 调用的本地化方法：
 //   rows.map((row) => row.amount.toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' }))
@@ -9,16 +18,21 @@ import { collectHotScopes, createInvarianceChecker, walkScopeOwnRegion } from '.
 //   items.filter((item) => item.name.localeCompare(query, 'zh', { sensitivity: 'base' }) === 0)
 // 这些调用每次都要按参数重新协商 locale、加载本地化数据并创建一次性的格式化器/排序器；
 // 参数既然不变，就应该在循环外创建一次 Intl.NumberFormat / DateTimeFormat / Collator 后复用。
-// 不带参数的调用引擎通常会缓存默认实例，不在范围内；locale / options 随迭代变化时无法直接提升，也不报。
+// 不带参数（或只传 undefined）的调用引擎通常会缓存默认实例，不在范围内；locale / options 随迭代变化时无法直接提升，也不报；
+// throw 里、循环中 return 里的调用每次进入作用域至多执行一次，同样不报。
 export const noLocaleFormatInHotPath = defineRule(
   'no-locale-format-in-hot-path',
   { tag: 'performance', severity: RuleSeverity.Optimizing },
   ({ analysis, helpers, language, messages }) => {
-    const scopes = collectHotScopes(analysis)
-    if (scopes.length === 0) {
+    // 先在共享的热路径调用索引里预筛：绝大多数文件没有这类调用，直接结束。
+    const hasCandidate = analysis.hotPath.callExpressions.some((callExpression) =>
+      LOCALE_METHODS.has(getCalledMethodName(callExpression as CallNode) ?? '')
+    )
+    if (!hasCandidate) {
       return
     }
 
+    const scopes = collectHotScopes(analysis)
     const scopeNodes = new Set<unknown>(scopes.map((scope) => scope.node))
     const checker = createInvarianceChecker(analysis)
     const suggestions =
@@ -41,34 +55,35 @@ export const noLocaleFormatInHotPath = defineRule(
           ]
 
     for (const scope of scopes) {
-      walkScopeOwnRegion(scope, scopeNodes, (node) => {
+      walkScopeOwnRegion(scope, scopeNodes, (node, ancestors) => {
         if (node.type !== 'CallExpression') {
           return true
         }
         const call = node as CallNode
         const method = getCalledMethodName(call)
         const spec = method ? LOCALE_METHODS.get(method) : undefined
-        if (!method || !spec) {
+        if (!method || !spec || isLeavingScope(scope, ancestors)) {
           return true
         }
 
         const configArguments = (call.arguments ?? []).slice(spec.configFrom)
-        const hasConfig = configArguments.some((argument) => !isUndefined(argument.expression))
+        const hasConfig = configArguments.some(
+          (argument) => !isUndefinedExpression(argument.expression)
+        )
         if (
           hasConfig &&
           configArguments.every(
             (argument) => !argument.spread && checker.isInvariant(argument.expression, scope)
           )
         ) {
-          const span = (call as { span?: Span }).span
           helpers.reportViolation(
             {
               description: messages.noLocaleFormatInHotPath({ method, intl: spec.intl }),
               code: `${describeExpression(call.callee)}(...)`,
               suggestions,
-              span,
+              span: call.span,
             },
-            span
+            call.span
           )
         }
         return true
@@ -85,9 +100,3 @@ const LOCALE_METHODS = new Map<string, { configFrom: number; intl: string }>([
   ['toLocaleTimeString', { configFrom: 0, intl: 'Intl.DateTimeFormat' }],
   ['localeCompare', { configFrom: 1, intl: 'Intl.Collator' }],
 ])
-
-// toLocaleString(undefined) 与不传参数等价。
-const isUndefined = (expression: unknown): boolean => {
-  const node = stripWrappers(expression) as { type?: string; value?: string } | null
-  return node?.type === 'Identifier' && node.value === 'undefined'
-}
