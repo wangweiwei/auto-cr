@@ -44,4 +44,5 @@ export {
   noNPlusOneQuery,
   noLocaleFormatInHotPath,
   noLayoutThrashing,
+  noJsonStringifyComparison,
 } from './rules'

@@ -20,6 +20,7 @@ import { noCollectionRebuildInHotPath } from './noCollectionRebuildInHotPath'
 import { noNPlusOneQuery } from './noNPlusOneQuery'
 import { noLocaleFormatInHotPath } from './noLocaleFormatInHotPath'
 import { noLayoutThrashing } from './noLayoutThrashing'
+import { noJsonStringifyComparison } from './noJsonStringifyComparison'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -44,6 +45,7 @@ export const builtinRules: Rule[] = [
   noNPlusOneQuery,
   noLocaleFormatInHotPath,
   noLayoutThrashing,
+  noJsonStringifyComparison,
 ]
 
 export {
@@ -68,4 +70,5 @@ export {
   noNPlusOneQuery,
   noLocaleFormatInHotPath,
   noLayoutThrashing,
+  noJsonStringifyComparison,
 }

@@ -22,7 +22,7 @@
 
 ## Feature Highlights (Automated Code Review & Static Analysis)
 
-- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, `no-n2-array-lookup`, `no-async-foreach`, `no-accumulating-spread`, `no-lost-error-cause`, `no-test-import-in-prod`, `no-self-package-import`, `no-regexp-construction-in-hot-path`, `no-await-in-loop`, `no-collection-rebuild-in-hot-path`, `no-n-plus-one-query`, `no-locale-format-in-hot-path`, `no-layout-thrashing`, and `no-non-literal-dynamic-import` (opt-in).
+- **Built-in Rule Library**: Ships with SWC AST static analysis rules out of the box, such as `no-deep-relative-imports`, `no-circular-dependencies`, `no-swallowed-errors`, `no-layer-violations`, `no-cross-package-private-imports`, `no-catastrophic-regex`, `no-blocking-api-in-hot-path`, `no-deep-clone-in-loop`, `no-n2-array-lookup`, `no-async-foreach`, `no-accumulating-spread`, `no-lost-error-cause`, `no-test-import-in-prod`, `no-self-package-import`, `no-regexp-construction-in-hot-path`, `no-await-in-loop`, `no-collection-rebuild-in-hot-path`, `no-n-plus-one-query`, `no-locale-format-in-hot-path`, `no-layout-thrashing`, `no-json-stringify-comparison`, and `no-non-literal-dynamic-import` (opt-in).
 - **Extensible SDK**: `auto-cr-rules` exposes helpers like `defineRule` and `helpers.imports`, reducing the friction of authoring custom TypeScript / JavaScript rules.
 - **Workspace Friendly**: Manage both the CLI and rule package via pnpm workspaces and validate the full pipeline with a single build.
 - **Publishing Toolkit**: Version bump scripts and npm publish commands keep both packages in sync.
@@ -211,6 +211,7 @@ module.exports = {
 - [Rule: no-n-plus-one-query](./docs/no-n-plus-one-query.md)
 - [Rule: no-locale-format-in-hot-path](./docs/no-locale-format-in-hot-path.md)
 - [Rule: no-layout-thrashing](./docs/no-layout-thrashing.md)
+- [Rule: no-json-stringify-comparison](./docs/no-json-stringify-comparison.md)
 
 ## Writing Custom Rules
 
@@ -307,6 +308,7 @@ examples/
   noNPlusOneQuery        # Example for N+1 queries
   noLocaleFormatInHotPath # Example for locale formatting in hot paths
   noLayoutThrashing      # Example for layout thrashing
+  noJsonStringifyComparison # Example for JSON.stringify equality checks
 ```
 
 Essential scripts:

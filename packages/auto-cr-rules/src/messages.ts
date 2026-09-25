@@ -39,6 +39,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `热路径中带 locale/options 调用 ${method}，每次调用都会在内部新建一个 Intl 格式化器，批量处理时开销显著；请在循环/回调外创建一次 ${intl} 并复用。`,
     noLayoutThrashing: ({ read }) =>
       `同一轮循环/数组回调里既修改样式或 DOM、又读取布局信息 ${read}：每次读取都会迫使浏览器立即同步重排，n 轮就是 n 次重排（布局抖动）。`,
+    noJsonStringifyComparison: () =>
+      '用 JSON.stringify 的结果判断相等并不可靠：结果依赖属性顺序（内容相同、构造顺序不同会判为不等），还会丢弃 undefined 与函数、改写 NaN / Date / Map / Set，且每次比较都要完整序列化两个对象。',
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -81,6 +83,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `Calling ${method} with locales/options in a hot path creates a new Intl formatter on every call, which is costly across many items; create one ${intl} outside the loop/callback and reuse it.`,
     noLayoutThrashing: ({ read }) =>
       `Layout is read (${read}) in the same loop/callback iteration that writes styles or the DOM: every read forces a synchronous reflow, so n iterations mean n reflows (layout thrashing).`,
+    noJsonStringifyComparison: () =>
+      'Comparing JSON.stringify results is not a reliable equality check: the output depends on property order (equal objects built in a different order compare unequal), drops undefined and functions, coerces NaN / Date / Map / Set, and serializes both values on every comparison.',
   },
 }
 
