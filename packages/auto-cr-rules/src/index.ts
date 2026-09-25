@@ -42,4 +42,5 @@ export {
   noNonLiteralDynamicImport,
   noCollectionRebuildInHotPath,
   noNPlusOneQuery,
+  noLocaleFormatInHotPath,
 } from './rules'
