@@ -41,4 +41,5 @@ export {
   noAwaitInLoop,
   noNonLiteralDynamicImport,
   noCollectionRebuildInHotPath,
+  noNPlusOneQuery,
 } from './rules'

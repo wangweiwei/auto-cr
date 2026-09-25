@@ -134,6 +134,7 @@ export interface RuleMessages {
   noAwaitInLoop(): string
   noNonLiteralDynamicImport(params: { form: string }): string
   noCollectionRebuildInHotPath(params: { code: string }): string
+  noNPlusOneQuery(params: { api: string }): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。

@@ -17,6 +17,7 @@ import { noRegexpConstructionInHotPath } from './noRegexpConstructionInHotPath'
 import { noAwaitInLoop } from './noAwaitInLoop'
 import { noNonLiteralDynamicImport } from './noNonLiteralDynamicImport'
 import { noCollectionRebuildInHotPath } from './noCollectionRebuildInHotPath'
+import { noNPlusOneQuery } from './noNPlusOneQuery'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -38,6 +39,7 @@ export const builtinRules: Rule[] = [
   noAwaitInLoop,
   noNonLiteralDynamicImport,
   noCollectionRebuildInHotPath,
+  noNPlusOneQuery,
 ]
 
 export {
@@ -59,4 +61,5 @@ export {
   noAwaitInLoop,
   noNonLiteralDynamicImport,
   noCollectionRebuildInHotPath,
+  noNPlusOneQuery,
 }

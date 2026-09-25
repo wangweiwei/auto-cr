@@ -33,6 +33,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `${form} 的模块说明符不是字面量，打包器无法静态解析：要么运行时找不到模块，要么被迫把整个目录打进产物，依赖分析也看不到这条边。`,
     noCollectionRebuildInHotPath: ({ code }) =>
       `${code} 在热路径中每轮都会重新构建，但它依赖的数据在迭代之间并没有变化：同一个集合被反复分配、遍历，开销随迭代次数成倍放大。`,
+    noNPlusOneQuery: ({ api }) =>
+      `热路径中逐条执行数据访问 ${api}：集合有 N 条就会产生 N 次数据库/缓存往返（N+1 查询），数据量增长后延迟与连接占用随之线性放大。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -69,6 +71,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       `The specifier passed to ${form} is not a literal, so bundlers cannot resolve it statically: the module may be missing at runtime or an entire directory gets bundled, and dependency analysis cannot see this edge.`,
     noCollectionRebuildInHotPath: ({ code }) =>
       `${code} is rebuilt on every iteration of a hot path even though the data it depends on does not change between iterations; the same collection is allocated and traversed again and again.`,
+    noNPlusOneQuery: ({ api }) =>
+      `Data access ${api} runs once per item in a hot path: N items mean N database/cache round-trips (the N+1 query problem), so latency and connection usage grow linearly with the data.`,
   },
 }
 
