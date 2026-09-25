@@ -31,6 +31,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noAwaitInLoop: () => '循环体内逐次 await，每轮都要等上一轮完成；若各轮互不依赖，可改为并发执行。',
     noNonLiteralDynamicImport: ({ form }) =>
       `${form} 的模块说明符不是字面量，打包器无法静态解析：要么运行时找不到模块，要么被迫把整个目录打进产物，依赖分析也看不到这条边。`,
+    noCollectionRebuildInHotPath: ({ code }) =>
+      `${code} 在热路径中每轮都会重新构建，但它依赖的数据在迭代之间并没有变化：同一个集合被反复分配、遍历，开销随迭代次数成倍放大。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -65,6 +67,8 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       'Awaiting inside a loop serializes the iterations; if they are independent, run them concurrently instead.',
     noNonLiteralDynamicImport: ({ form }) =>
       `The specifier passed to ${form} is not a literal, so bundlers cannot resolve it statically: the module may be missing at runtime or an entire directory gets bundled, and dependency analysis cannot see this edge.`,
+    noCollectionRebuildInHotPath: ({ code }) =>
+      `${code} is rebuilt on every iteration of a hot path even though the data it depends on does not change between iterations; the same collection is allocated and traversed again and again.`,
   },
 }
 

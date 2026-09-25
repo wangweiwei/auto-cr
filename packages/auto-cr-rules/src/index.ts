@@ -40,4 +40,5 @@ export {
   noRegexpConstructionInHotPath,
   noAwaitInLoop,
   noNonLiteralDynamicImport,
+  noCollectionRebuildInHotPath,
 } from './rules'
