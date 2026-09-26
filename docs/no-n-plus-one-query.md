@@ -6,7 +6,7 @@
 - ESLint 生态里只有通用的 `no-await-in-loop`，既不认识数据访问 API，也看不到 `map` 回调里的查询；本规则专门识别这类往返。
 
 ## 2. 适用范围
-- 按数据逐条迭代的热路径：`for...of` / `for...in`、条件里出现 `.length` / `.size`（且该集合没有在循环中被整体换掉）的 `for` 循环、数组高阶方法回调（`map` / `forEach` / `filter` / `reduce` 等），以及它们内部嵌套的循环与回调。
+- 按数据逐条迭代的热路径：`for...of` / `for...in`、条件里出现 `.length` / `.size`（且该集合没有在循环中被整体换掉）的 `for` 循环、数组高阶方法回调（`map` / `forEach` / `filter` / `reduce` 等），以及它们内部嵌套的循环与回调。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 识别的数据访问（按 API 形态识别，不做类型推断）：
   - 辨识度高的 ORM / 驱动方法：`findUnique` / `findFirst` / `findMany`（Prisma）、`findById` / `findOne` / `findOneAndUpdate` / `countDocuments` / `insertOne` / `replaceOne` / `deleteOne`（Mongoose、MongoDB）、`findByPk` / `findAll` / `findOrCreate`（Sequelize）、`findOneBy` / `findOneOrFail` / `findAndCount`（TypeORM）、`$queryRaw` / `$executeRaw`（含 `` prisma.$queryRaw`...` `` 模板写法）等；`updateOne` 不在其中（Redux Toolkit / NgRx 的 `entityAdapter.updateOne` 同名）；
   - Prisma 风格的 `<client>.<model>.<count|aggregate|groupBy|create|update|upsert|delete>`，其中 `client` 为 `prisma` / `db` / `tx` 或名字含 `prisma` 的对象（如 `this.prismaService`）；

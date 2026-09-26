@@ -5,7 +5,7 @@
 - 这也是 ReDoS（正则拒绝服务）的典型成因：只要输入可被外部控制，就是一个可被触发的拒绝服务点。
 
 ## 2. 适用范围
-- 热路径（循环体与数组高阶方法回调）内的正则字面量 `/.../`，以及用字符串字面量或无插值模板字符串构造的 `new RegExp(...)` / `RegExp(...)`。
+- 热路径（循环体与数组高阶方法回调）内的正则字面量 `/.../`，以及用字符串字面量或无插值模板字符串构造的 `new RegExp(...)` / `RegExp(...)`。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 动态拼接的模式不做分析。热路径之外的正则不在范围内——同样的模式放在热路径里影响被成倍放大，本规则聚焦于此。
 
 ## 3. 规则说明
@@ -46,9 +46,10 @@ for (const sample of samples) {
 - 启用方式：`auto-cr-cmd` 默认加载内置规则集并启用本规则；可在 `.autocrrc.json` 的 `rules` 中设为 `"off"` 或调整严重级别。
 
 ## 7. 版本与变更
-- 当前规则版本参考包版本：`auto-cr-rules@2.0.121`
+- 当前规则版本参考包版本：`auto-cr-rules@2.0.124`
 - 变更记录：
   - 2.0.121：补充规则文档；`RegExp` 参数提取逻辑抽为共享工具，行为不变。
+  - 2.0.124：经可选链调用的数组高阶方法（`items?.map(...)`）与被括号、TS 断言包裹的回调同样计入热路径。
 
 ## 8. 参考资料
 - OWASP：Regular expression Denial of Service - ReDoS：https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS

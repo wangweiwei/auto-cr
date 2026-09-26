@@ -6,7 +6,7 @@
 - ESLint 生态（含 typescript-eslint、unicorn、sonarjs）没有“循环不变量”层面的检测，本规则补上这一块。
 
 ## 2. 适用范围
-- JavaScript / TypeScript 源码中的热路径：循环体与循环条件（`for` / `for...of` / `for...in` / `while` / `do...while`）、数组高阶方法回调（`map` / `forEach` / `filter` / `reduce` 等）。
+- JavaScript / TypeScript 源码中的热路径：循环体与循环条件（`for` / `for...of` / `for...in` / `while` / `do...while`）、数组高阶方法回调（`map` / `forEach` / `filter` / `reduce` 等）。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 覆盖的“构建”形态：
   - `new Set(x)` / `new Map(x)`；
   - `x.map(...)` / `filter` / `flatMap` / `flat` / `split` / `concat` / `slice` / `toSorted` / `toReversed`，以及接收者本身是新集合时的 `sort` / `reverse`；
