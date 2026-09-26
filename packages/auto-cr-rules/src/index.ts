@@ -40,4 +40,10 @@ export {
   noRegexpConstructionInHotPath,
   noAwaitInLoop,
   noNonLiteralDynamicImport,
+  noCollectionRebuildInHotPath,
+  noNPlusOneQuery,
+  noLocaleFormatInHotPath,
+  noLayoutThrashing,
+  noJsonStringifyComparison,
+  noLossyErrorSerialization,
 } from './rules'

@@ -31,6 +31,18 @@ const ruleTranslations: Record<Language, RuleMessages> = {
     noAwaitInLoop: () => '循环体内逐次 await，每轮都要等上一轮完成；若各轮互不依赖，可改为并发执行。',
     noNonLiteralDynamicImport: ({ form }) =>
       `${form} 的模块说明符不是字面量，打包器无法静态解析：要么运行时找不到模块，要么被迫把整个目录打进产物，依赖分析也看不到这条边。`,
+    noCollectionRebuildInHotPath: ({ code }) =>
+      `${code} 在热路径中每轮都会重新构建，但它依赖的数据在迭代之间并没有变化：同一个集合被反复分配、遍历，开销随迭代次数成倍放大。`,
+    noNPlusOneQuery: ({ api }) =>
+      `热路径中逐条执行数据访问 ${api}：集合有 N 条就会产生 N 次数据库/缓存往返（N+1 查询），数据量增长后延迟与连接占用随之线性放大。`,
+    noLocaleFormatInHotPath: ({ method, intl }) =>
+      `热路径中带 locale/options 调用 ${method}，每次调用都会在内部新建一个 Intl 格式化器，批量处理时开销显著；请在循环/回调外创建一次 ${intl} 并复用。`,
+    noLayoutThrashing: ({ read }) =>
+      `同一轮循环/数组回调里既修改样式或 DOM、又读取布局信息 ${read}：每次读取都会迫使浏览器立即同步重排，n 轮就是 n 次重排（布局抖动）。`,
+    noJsonStringifyComparison: () =>
+      '用 JSON.stringify 的结果判断相等并不可靠：结果依赖属性顺序（内容相同、构造顺序不同会判为不等），还会丢弃 undefined 与函数、改写 NaN / Date / Map / Set，且每次比较都要完整序列化两个对象。',
+    noLossyErrorSerialization: ({ name, form }) =>
+      `错误对象 "${name}" 经 ${form} 处理后会丢失关键信息：Error 的 message、stack（以及 cause）都是不可枚举属性，JSON.stringify、对象展开和 Object.assign 都读不到，结果通常只剩 "{}"。`,
   },
   en: {
     noDeepRelativeImports: ({ value, maxDepth }) => `Import path "${value}" must not exceed max depth ${maxDepth}`,
@@ -65,6 +77,18 @@ const ruleTranslations: Record<Language, RuleMessages> = {
       'Awaiting inside a loop serializes the iterations; if they are independent, run them concurrently instead.',
     noNonLiteralDynamicImport: ({ form }) =>
       `The specifier passed to ${form} is not a literal, so bundlers cannot resolve it statically: the module may be missing at runtime or an entire directory gets bundled, and dependency analysis cannot see this edge.`,
+    noCollectionRebuildInHotPath: ({ code }) =>
+      `${code} is rebuilt on every iteration of a hot path even though the data it depends on does not change between iterations; the same collection is allocated and traversed again and again.`,
+    noNPlusOneQuery: ({ api }) =>
+      `Data access ${api} runs once per item in a hot path: N items mean N database/cache round-trips (the N+1 query problem), so latency and connection usage grow linearly with the data.`,
+    noLocaleFormatInHotPath: ({ method, intl }) =>
+      `Calling ${method} with locales/options in a hot path creates a new Intl formatter on every call, which is costly across many items; create one ${intl} outside the loop/callback and reuse it.`,
+    noLayoutThrashing: ({ read }) =>
+      `Layout is read (${read}) in the same loop/callback iteration that writes styles or the DOM: every read forces a synchronous reflow, so n iterations mean n reflows (layout thrashing).`,
+    noJsonStringifyComparison: () =>
+      'Comparing JSON.stringify results is not a reliable equality check: the output depends on property order (equal objects built in a different order compare unequal), drops undefined and functions, coerces NaN / Date / Map / Set, and serializes both values on every comparison.',
+    noLossyErrorSerialization: ({ name, form }) =>
+      `Error "${name}" loses its key information through ${form}: message, stack (and cause) are non-enumerable, so JSON.stringify, object spread and Object.assign skip them and usually produce just "{}".`,
   },
 }
 

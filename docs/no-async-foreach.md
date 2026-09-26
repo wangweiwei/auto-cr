@@ -5,8 +5,8 @@
 - 结果是两个典型 bug：调用方在回调完成前就继续执行（后续逻辑读到未完成的状态）；回调内抛出的异常不再是同步异常，而是变成未处理的 Promise rejection。
 
 ## 2. 适用范围
-- JavaScript / TypeScript 源码中所有 `xxx.forEach(...)` 调用，包括数组、`Map`、`Set`、`NodeList` 等，语义一致。
-- 仅覆盖内联的函数回调（箭头函数与 `function` 表达式），包括嵌套在其它回调内部的 `forEach`。
+- JavaScript / TypeScript 源码中所有 `xxx.forEach(...)` 调用（含可选链写法 `xxx?.forEach(...)` / `xxx.forEach?.(...)`），包括数组、`Map`、`Set`、`NodeList` 等，语义一致。
+- 仅覆盖内联的函数回调（箭头函数与 `function` 表达式，外层的括号或 TS 断言不影响判定），包括嵌套在其它回调内部的 `forEach`。
 
 ## 3. 规则说明
 - 约束：传给 `forEach` 的回调不得声明为 `async`。
@@ -44,9 +44,10 @@ await Promise.all(ids.map(async (id) => save(id)))
 - 启用方式：`auto-cr-cmd` 默认加载内置规则集并启用本规则；可在 `.autocrrc.json` 的 `rules` 中设为 `"off"` 或调整严重级别。
 
 ## 7. 版本与变更
-- 当前规则版本参考包版本：`auto-cr-rules@2.0.121`
+- 当前规则版本参考包版本：`auto-cr-rules@2.0.124`
 - 变更记录：
   - 2.0.121：新增规则，检测传给 `forEach` 的 `async` 回调。
+  - 2.0.124：可选链写法 `xxx?.forEach(async ...)` 与被括号、TS 断言包裹的 `async` 回调同样检测。
 
 ## 8. 参考资料
 - MDN：Array.prototype.forEach（"forEach expects a synchronous function"）：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach

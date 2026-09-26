@@ -20,4 +20,9 @@ const matches = users.map((user) => {
   return hit ?? null
 })
 
-console.log(matches)
+declare const maybeUsers: typeof users | undefined
+
+// Optional chaining does not change how often the callback runs: still once per user.
+const maybeMatches = maybeUsers?.map((user) => ids.find((id) => id === user.id))
+
+console.log(matches, maybeMatches)

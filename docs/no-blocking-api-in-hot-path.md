@@ -5,7 +5,7 @@
 - 与全局禁用同步 API 不同，本规则只关注“重复执行”的场景，减少对启动脚本或一次性初始化代码的噪声。
 
 ## 2. 适用范围
-- JavaScript / TypeScript 源码中的 `for` / `while` / `forEach` / `map` / `reduce` 等热路径。
+- JavaScript / TypeScript 源码中的 `for` / `while` / `forEach` / `map` / `reduce` 等热路径。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 当前版本重点覆盖以下模块的阻塞式 API：
   - `fs`
   - `child_process`
@@ -65,9 +65,10 @@ await Promise.all(files.map((file) => execAsync(`wc -l ${file}`)))
 - 启用方式：`auto-cr-cmd` 默认加载内置规则集并启用本规则。
 
 ## 7. 版本与变更
-- 当前规则版本参考包版本：`auto-cr-rules@2.0.117`
+- 当前规则版本参考包版本：`auto-cr-rules@2.0.124`
 - 变更记录：
   - 2.0.117：新增规则文档，检测热路径中的阻塞式 Node API 调用。
+  - 2.0.124：经可选链调用的数组高阶方法（`items?.map(...)`）与被括号、TS 断言包裹的回调同样计入热路径。
 
 ## 8. 参考资料
 - Node.js Event Loop：https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop

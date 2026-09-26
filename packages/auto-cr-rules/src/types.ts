@@ -1,5 +1,6 @@
 import type {
   ArrowFunctionExpression,
+  BinaryExpression,
   CallExpression,
   DoWhileStatement,
   Expression,
@@ -90,7 +91,7 @@ export interface HotPathIndex {
   regExpLiterals: ReadonlyArray<RegExpLiteral>
 }
 
-// 规则共享分析结果：一次遍历抽取 imports/loops/callbacks/tryStatements/hotPath。
+// 规则共享分析结果：一次遍历抽取 imports/loops/callbacks/tryStatements/callExpressions/binaryExpressions/reassignedNames/hotPath。
 // 说明符不是字面量的 import() / require()。单独索引而不混入 imports：后者的 value 必须是字符串。
 export interface NonLiteralImportReference {
   kind: 'dynamic' | 'require'
@@ -104,6 +105,11 @@ export interface RuleAnalysis {
   loops: ReadonlyArray<LoopEntry>
   callbacks: ReadonlyArray<HotCallbackEntry>
   tryStatements: ReadonlyArray<TryStatement>
+  // 全部调用与二元表达式（不限热路径）：按调用形态、比较形态判定的规则直接读取，免去各自整棵树遍历。
+  callExpressions: ReadonlyArray<CallExpression>
+  binaryExpressions: ReadonlyArray<BinaryExpression>
+  // 文件内被重新赋值过的标识符（不含对象属性写入），用于判断某个名字是否可能在别处被替换。
+  reassignedNames: ReadonlySet<string>
   hotPath: HotPathIndex
 }
 
@@ -127,6 +133,12 @@ export interface RuleMessages {
   noRegexpConstructionInHotPath(params: { pattern: string }): string
   noAwaitInLoop(): string
   noNonLiteralDynamicImport(params: { form: string }): string
+  noCollectionRebuildInHotPath(params: { code: string }): string
+  noNPlusOneQuery(params: { api: string }): string
+  noLocaleFormatInHotPath(params: { method: string; intl: string }): string
+  noLayoutThrashing(params: { read: string }): string
+  noJsonStringifyComparison(): string
+  noLossyErrorSerialization(params: { name: string; form: string }): string
 }
 
 // 规则辅助方法集合，避免在每条规则里重复实现通用逻辑。

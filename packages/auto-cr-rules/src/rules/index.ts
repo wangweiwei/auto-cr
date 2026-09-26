@@ -16,6 +16,12 @@ import { noSelfPackageImport } from './noSelfPackageImport'
 import { noRegexpConstructionInHotPath } from './noRegexpConstructionInHotPath'
 import { noAwaitInLoop } from './noAwaitInLoop'
 import { noNonLiteralDynamicImport } from './noNonLiteralDynamicImport'
+import { noCollectionRebuildInHotPath } from './noCollectionRebuildInHotPath'
+import { noNPlusOneQuery } from './noNPlusOneQuery'
+import { noLocaleFormatInHotPath } from './noLocaleFormatInHotPath'
+import { noLayoutThrashing } from './noLayoutThrashing'
+import { noJsonStringifyComparison } from './noJsonStringifyComparison'
+import { noLossyErrorSerialization } from './noLossyErrorSerialization'
 
 // 内置规则列表，按默认顺序执行。
 export const builtinRules: Rule[] = [
@@ -36,6 +42,12 @@ export const builtinRules: Rule[] = [
   noRegexpConstructionInHotPath,
   noAwaitInLoop,
   noNonLiteralDynamicImport,
+  noCollectionRebuildInHotPath,
+  noNPlusOneQuery,
+  noLocaleFormatInHotPath,
+  noLayoutThrashing,
+  noJsonStringifyComparison,
+  noLossyErrorSerialization,
 ]
 
 export {
@@ -56,4 +68,10 @@ export {
   noRegexpConstructionInHotPath,
   noAwaitInLoop,
   noNonLiteralDynamicImport,
+  noCollectionRebuildInHotPath,
+  noNPlusOneQuery,
+  noLocaleFormatInHotPath,
+  noLayoutThrashing,
+  noJsonStringifyComparison,
+  noLossyErrorSerialization,
 }
