@@ -168,7 +168,8 @@ async function run(
     }
 
     const percent = Math.min(100, Math.floor((progressCurrent / progressTotal) * 100))
-    if (!force && percent === progressLastPercent) {
+    // 强制重绘只用于恢复 TTY 上被日志覆盖的进度行；非 TTY 每次渲染都会新起一行，百分比没变就不重复输出。
+    if (percent === progressLastPercent && (!force || !progressStreamHasTty)) {
       return
     }
 
@@ -228,7 +229,6 @@ async function run(
 
     if (progressTotal > 0) {
       progressCurrent = progressTotal
-      progressLastPercent = -1
       renderProgress()
       clearProgressLine()
     }
@@ -748,6 +748,13 @@ try {
   process.exit(1)
 }
 
+// stdout 接管道时，超出管道缓冲区（64KB）的部分是异步写出的：写完再退出，否则 JSON 会被 process.exit 截断。
+// 下游提前关闭管道（如 | head）时 stdout 会报 EPIPE，直接按原退出码结束。
+const writeStdoutAndExit = (text: string, exitCode: number): void => {
+  process.stdout.once('error', () => process.exit(exitCode))
+  process.stdout.write(text, () => process.exit(exitCode))
+}
+
 ;(async () => {
   try {
     const stdinTargets = await readPathsFromStdin(Boolean(options.stdin))
@@ -760,8 +767,8 @@ try {
     if (outputFormat === 'json') {
       const payload = formatJsonOutput(result)
       const exitCode = result.filesWithErrors > 0 ? 1 : 0
-      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`)
-      process.exit(exitCode)
+      writeStdoutAndExit(`${JSON.stringify(payload, null, 2)}\n`, exitCode)
+      return
     }
 
     if (result.scannedFiles > 0) {
@@ -788,11 +795,11 @@ try {
           detail,
         },
       }
-      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`)
-    } else {
-      consola.error(t.scanError(), detail)
+      writeStdoutAndExit(`${JSON.stringify(payload, null, 2)}\n`, 1)
+      return
     }
 
+    consola.error(t.scanError(), detail)
     process.exit(1)
   }
 })()
