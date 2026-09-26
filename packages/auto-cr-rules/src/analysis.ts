@@ -1,6 +1,7 @@
 import type {
   Argument,
   ArrowFunctionExpression,
+  BinaryExpression,
   CallExpression,
   Expression,
   ForInStatement,
@@ -21,10 +22,11 @@ import type {
   ExportAllDeclaration,
   ExportNamedDeclaration,
 } from '@swc/types'
+import { collectPatternNames, getCalledMethodName, type CallNode } from './rules/utils/ast'
 import type { ImportReference, LoopEntry, NonLiteralImportReference, RuleAnalysis, HotCallbackEntry } from './types'
 
 // 热路径定义：循环体 + 常见数组回调（map/forEach/...）的函数体。
-const HOT_CALLBACK_METHODS = new Set([
+export const HOT_CALLBACK_METHODS: ReadonlySet<string> = new Set([
   'map',
   'forEach',
   'reduce',
@@ -37,7 +39,7 @@ const HOT_CALLBACK_METHODS = new Set([
   'flatMap',
 ])
 
-// 共享 AST 遍历入口：一次遍历同时抽取 imports/loops/callbacks/hotPath/tryStatements。
+// 共享 AST 遍历入口：一次遍历同时抽取 imports/loops/callbacks/hotPath/tryStatements/callExpressions/binaryExpressions/reassignedNames。
 // 这样规则只需读取索引即可，避免每条规则重复扫 AST。
 export const analyzeModule = (ast: Module): RuleAnalysis => {
   const imports: ImportReference[] = []
@@ -45,6 +47,9 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
   const loops: LoopEntry[] = []
   const callbacks: HotCallbackEntry[] = []
   const tryStatements: TryStatement[] = []
+  const callExpressions: CallExpression[] = []
+  const binaryExpressions: BinaryExpression[] = []
+  const reassignedNames = new Set<string>()
   const hotPath = {
     callExpressions: [] as CallExpression[],
     newExpressions: [] as NewExpression[],
@@ -90,6 +95,17 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
       tryStatements.push(candidate as TryStatement)
     }
 
+    if (candidate.type === 'BinaryExpression') {
+      binaryExpressions.push(candidate as BinaryExpression)
+    }
+
+    // 被重新赋值过的标识符（x = ... / x += ... / x++ / [a, b] = ... / (x as T) = ...）；对象属性写入不算。
+    if (candidate.type === 'AssignmentExpression') {
+      collectPatternNames((candidate as { left: unknown }).left, reassignedNames)
+    } else if (candidate.type === 'UpdateExpression') {
+      collectPatternNames((candidate as { argument: unknown }).argument, reassignedNames)
+    }
+
     // 热路径正则字面量只在热路径内收集，避免无关代码噪声。
     if (candidate.type === 'RegExpLiteral' && inHot) {
       hotPath.regExpLiterals.push(candidate as RegExpLiteral)
@@ -124,6 +140,11 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
       case 'ForOfStatement': {
         const statement = candidate as ForInStatement | ForOfStatement
         loops.push({ type: statement.type as LoopEntry['type'], node: statement })
+        // for (x of xs) 对既有变量逐轮赋值；for (const x of xs) / for (using x of xs) 是新声明，不算。
+        const leftType = (statement.left as { type?: string }).type
+        if (leftType !== 'VariableDeclaration' && leftType !== 'UsingDeclaration') {
+          collectPatternNames(statement.left, reassignedNames)
+        }
         walk(statement.left, inHot)
         walk(statement.right, inHot)
         walk(statement.body, true)
@@ -131,6 +152,7 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
       }
       case 'CallExpression': {
         // 统一在这里处理 import/require、热路径调用点、数组回调。
+        callExpressions.push(candidate as CallExpression)
         handleCallExpression(candidate as CallExpression, inHot, imports, nonLiteralImports, callbacks, hotPath, walk)
         return
       }
@@ -187,6 +209,9 @@ export const analyzeModule = (ast: Module): RuleAnalysis => {
     callbacks: Object.freeze(callbacks),
     tryStatements: Object.freeze(tryStatements),
     nonLiteralImports: Object.freeze(nonLiteralImports),
+    callExpressions: Object.freeze(callExpressions),
+    binaryExpressions: Object.freeze(binaryExpressions),
+    reassignedNames: Object.freeze(reassignedNames) as ReadonlySet<string>,
     hotPath: Object.freeze({
       callExpressions: Object.freeze(hotPath.callExpressions),
       newExpressions: Object.freeze(hotPath.newExpressions),
@@ -224,7 +249,12 @@ const handleCallExpression = (
   }
 
   // 判断是否为数组高阶回调，回调函数体应当视为热路径。
-  const isHotCallback = isHotCallbackMethod(callExpression.callee)
+  // 只认 items.map(...) 这种直接成员调用，与既有规则的热路径口径保持一致（items?.map(...) 不计入）。
+  const method =
+    callExpression.callee.type === 'MemberExpression'
+      ? getCalledMethodName(callExpression as CallNode)
+      : null
+  const isHotCallback = method !== null && HOT_CALLBACK_METHODS.has(method)
   walk(callExpression.callee, inHot)
 
   if (!callExpression.arguments) {
@@ -235,11 +265,7 @@ const handleCallExpression = (
     const expression = argument.expression
     // 约定数组回调的第一个参数是回调函数体，标记为热路径。
     if (isHotCallback && index === 0 && isFunctionLike(expression)) {
-      callbacks.push({
-        method: getMemberMethodName(callExpression.callee),
-        callExpression,
-        callback: expression,
-      })
+      callbacks.push({ method, callExpression, callback: expression })
       // 回调函数体在热路径内执行，遍历时显式传入 true。
       walkFunctionBody(expression, true, walk)
       return
@@ -279,50 +305,6 @@ const walkFunctionBody = (
 
 const isFunctionLike = (candidate: Expression): candidate is FunctionExpression | ArrowFunctionExpression => {
   return candidate.type === 'FunctionExpression' || candidate.type === 'ArrowFunctionExpression'
-}
-
-// 判断是否为数组高阶方法（如 arr.map/arr.forEach）。
-const isHotCallbackMethod = (callee: unknown): boolean => {
-  if (!callee || typeof callee !== 'object') {
-    return false
-  }
-
-  const candidate = callee as { type?: string }
-  if (candidate.type !== 'MemberExpression') {
-    return false
-  }
-
-  const member = callee as MemberExpression
-  const property = member.property
-  if (property.type === 'Identifier') {
-    return HOT_CALLBACK_METHODS.has(property.value)
-  }
-
-  if (property.type === 'Computed' && property.expression.type === 'StringLiteral') {
-    return HOT_CALLBACK_METHODS.has(property.expression.value)
-  }
-
-  return false
-}
-
-// 提取形如 obj.method(...) 的方法名，用于回调索引。
-const getMemberMethodName = (expression: Expression | { type?: string }): string | null => {
-  if (!expression || expression.type !== 'MemberExpression') {
-    return null
-  }
-
-  const member = expression as MemberExpression
-  const property = member.property
-
-  if (property.type === 'Identifier') {
-    return property.value
-  }
-
-  if (property.type === 'Computed' && property.expression.type === 'StringLiteral') {
-    return property.expression.value
-  }
-
-  return null
 }
 
 // 从调用表达式中提取 import/require 的字符串字面量参数。
