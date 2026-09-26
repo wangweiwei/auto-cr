@@ -6,7 +6,7 @@
 - 修复方式很机械：先批量读取，再批量写入。ESLint 生态中只有针对“同一轮里至少两次 `style` 赋值”的规则（react-doctor 的 `js-batch-dom-css`），覆盖不到最常见的“每轮读一次、写一次”。
 
 ## 2. 适用范围
-- 浏览器端 JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`forEach` / `map` 等）。一轮迭代内的嵌套循环、嵌套回调一并计入；循环内定义的事件处理函数等普通函数不计入。
+- 浏览器端 JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`forEach` / `map` 等）。一轮迭代内的嵌套循环、嵌套回调一并计入；循环内定义的事件处理函数等普通函数不计入。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 布局读取：`offsetWidth/Height/Top/Left/Parent`、`clientWidth/Height/Top/Left`、`scrollWidth/Height/Top/Left`、`innerText` 的读取，`scrollTop` / `scrollLeft` 的赋值（赋值前浏览器同样要先完成布局，但它只改滚动位置、不让布局失效，因此按“读取”处理），以及 `getBoundingClientRect()`、`getClientRects()`、`getComputedStyle()`、`getBBox()` 调用。
 - 布局写入：`xxx.style.* =` 与 `style.setProperty/removeProperty()`、`classList.add/remove/toggle/replace()`（含 `items[i].classList`）、`className` / `innerHTML` / `outerHTML` / `textContent` / `innerText` 赋值，以及 `appendChild`、`insertBefore`、`removeChild`、`replaceChild`、`insertAdjacentHTML/Element/Text`、`replaceChildren`、`replaceWith`、`setAttribute`、`removeAttribute`、`toggleAttribute` 调用。
 - 写入尚未挂到文档上的节点不算布局写入：本轮用 `createElement` / `createElementNS` / `createTextNode` / `cloneNode` / `importNode` 新建的节点，以及文件内由 `createDocumentFragment()` 初始化的变量。

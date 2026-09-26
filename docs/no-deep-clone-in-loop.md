@@ -8,6 +8,7 @@
 - 热路径（循环体与数组高阶方法回调）内的以下调用：
   - `structuredClone(...)` / `globalThis.structuredClone(...)`
   - `JSON.parse(JSON.stringify(...))`（以嵌套调用形式出现）
+- 数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 
 ## 3. 规则说明
 - 约束：热路径中不得调用上述标准深拷贝。
@@ -43,9 +44,10 @@ const snapshot = structuredClone(state)            // 循环外一次性拷贝
 - 启用方式：`auto-cr-cmd` 默认加载内置规则集并启用本规则；可在 `.autocrrc.json` 的 `rules` 中设为 `"off"` 或调整严重级别。
 
 ## 7. 版本与变更
-- 当前规则版本参考包版本：`auto-cr-rules@2.0.121`
+- 当前规则版本参考包版本：`auto-cr-rules@2.0.124`
 - 变更记录：
   - 2.0.121：补充规则文档，行为不变。
+  - 2.0.124：经可选链调用的数组高阶方法（`items?.map(...)`）与被括号、TS 断言包裹的回调同样计入热路径。
 
 ## 8. 参考资料
 - MDN：structuredClone()：https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone

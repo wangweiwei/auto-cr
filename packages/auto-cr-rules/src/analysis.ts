@@ -3,7 +3,6 @@ import type {
   ArrowFunctionExpression,
   BinaryExpression,
   CallExpression,
-  Expression,
   ForInStatement,
   ForOfStatement,
   ForStatement,
@@ -22,7 +21,7 @@ import type {
   ExportAllDeclaration,
   ExportNamedDeclaration,
 } from '@swc/types'
-import { collectPatternNames, getCalledMethodName, type CallNode } from './rules/utils/ast'
+import { collectPatternNames, getCalledMethodName, stripWrappers, type CallNode } from './rules/utils/ast'
 import type { ImportReference, LoopEntry, NonLiteralImportReference, RuleAnalysis, HotCallbackEntry } from './types'
 
 // 热路径定义：循环体 + 常见数组回调（map/forEach/...）的函数体。
@@ -249,11 +248,9 @@ const handleCallExpression = (
   }
 
   // 判断是否为数组高阶回调，回调函数体应当视为热路径。
-  // 只认 items.map(...) 这种直接成员调用，与既有规则的热路径口径保持一致（items?.map(...) 不计入）。
-  const method =
-    callExpression.callee.type === 'MemberExpression'
-      ? getCalledMethodName(callExpression as CallNode)
-      : null
+  // items?.map(...) / items.map?.(...) / (items.map)(...) 与 items.map(...) 一样逐元素执行回调：
+  // getCalledMethodName 会剥掉可选链、括号与 TS 断言。
+  const method = getCalledMethodName(callExpression as CallNode)
   const isHotCallback = method !== null && HOT_CALLBACK_METHODS.has(method)
   walk(callExpression.callee, inHot)
 
@@ -263,11 +260,12 @@ const handleCallExpression = (
 
   callExpression.arguments.forEach((argument, index) => {
     const expression = argument.expression
-    // 约定数组回调的第一个参数是回调函数体，标记为热路径。
-    if (isHotCallback && index === 0 && isFunctionLike(expression)) {
-      callbacks.push({ method, callExpression, callback: expression })
+    // 约定数组回调的第一个参数是回调函数体，标记为热路径；items.map((cb) as Fn) 这类括号、TS 断言先剥掉。
+    const callback = isHotCallback && index === 0 ? stripWrappers(expression) : null
+    if (isFunctionLike(callback)) {
+      callbacks.push({ method, callExpression, callback })
       // 回调函数体在热路径内执行，遍历时显式传入 true。
-      walkFunctionBody(expression, true, walk)
+      walkFunctionBody(callback, true, walk)
       return
     }
 
@@ -303,8 +301,9 @@ const walkFunctionBody = (
   walk(fn.body, inHot)
 }
 
-const isFunctionLike = (candidate: Expression): candidate is FunctionExpression | ArrowFunctionExpression => {
-  return candidate.type === 'FunctionExpression' || candidate.type === 'ArrowFunctionExpression'
+const isFunctionLike = (candidate: unknown): candidate is FunctionExpression | ArrowFunctionExpression => {
+  const type = (candidate as { type?: string } | null)?.type
+  return type === 'FunctionExpression' || type === 'ArrowFunctionExpression'
 }
 
 // 从调用表达式中提取 import/require 的字符串字面量参数。

@@ -26,6 +26,13 @@ ids.forEach(async (id) => {
   if (id > 2) throw new Error('too large')
 })
 
+declare const maybeIds: number[] | undefined
+
+// Optional chaining changes nothing: forEach still drops the promise.
+maybeIds?.forEach(async (id) => {
+  await save(id)
+})
+
 // --- Compliant ---
 
 // Sequential: for...of with await.

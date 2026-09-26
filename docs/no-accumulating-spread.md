@@ -5,7 +5,7 @@
 - 放在 `reduce` 回调或循环里，就意味着第 i 次迭代复制 i 个元素，整体从 O(n) 退化为 O(n²)；数据量上万时会从毫秒级变成秒级。
 
 ## 2. 适用范围
-- JavaScript / TypeScript 源码中的 `reduce` / `reduceRight` 回调，以及所有循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）和数组高阶方法回调。
+- JavaScript / TypeScript 源码中的 `reduce` / `reduceRight` 回调，以及所有循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）和数组高阶方法回调。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 数组字面量展开与对象字面量展开均覆盖。
 
 ## 3. 规则说明
@@ -51,9 +51,10 @@ const merged = [...base, ...collected] // 循环结束后只展开一次
 - 启用方式：`auto-cr-cmd` 默认加载内置规则集并启用本规则；可在 `.autocrrc.json` 的 `rules` 中设为 `"off"` 或调整严重级别。
 
 ## 7. 版本与变更
-- 当前规则版本参考包版本：`auto-cr-rules@2.0.121`
+- 当前规则版本参考包版本：`auto-cr-rules@2.0.124`
 - 变更记录：
   - 2.0.121：新增规则，覆盖 reduce 累加器展开与循环携带变量的自展开赋值。
+  - 2.0.124：经可选链调用的数组高阶方法（`items?.map(...)`）与被括号、TS 断言包裹的回调同样计入热路径。
 
 ## 8. 参考资料
 - Biome `noAccumulatingSpread`：https://biomejs.dev/linter/rules/no-accumulating-spread/

@@ -6,7 +6,7 @@
 - MDN 对这几个方法都有同样的建议：同样的参数被大量调用时，创建一次 `Intl` 对象并复用。
 
 ## 2. 适用范围
-- JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`map` / `forEach` / `filter` 等）。
+- JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`map` / `forEach` / `filter` 等）。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 覆盖的方法：`toLocaleString(locales, options)`、`toLocaleDateString(locales, options)`、`toLocaleTimeString(locales, options)`、`localeCompare(other, locales, options)`。
 
 ## 3. 规则说明

@@ -5,7 +5,7 @@
 - 模式既然是常量，提升到循环外一次构造即可，改动零风险，收益随迭代次数线性增长。
 
 ## 2. 适用范围
-- JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`map` / `forEach` / `reduce` / `filter` 等）。
+- JavaScript / TypeScript 源码中的热路径：循环体（`for` / `for...of` / `for...in` / `while` / `do...while`）与数组高阶方法回调（`map` / `forEach` / `reduce` / `filter` 等）。数组高阶方法经可选链调用时（`items?.map((x) => ...)`、`items.map?.((x) => ...)`），回调同样属于热路径；回调外层的括号或 TS 断言（`items.map(((x) => ...) as Mapper)`）不影响判定。
 - 覆盖 `new RegExp(...)` 与不带 `new` 的 `RegExp(...)` 两种调用。
 
 ## 3. 规则说明
@@ -47,9 +47,10 @@ for (const line of lines) {
 - 启用方式：`auto-cr-cmd` 默认加载内置规则集并启用本规则；可在 `.autocrrc.json` 的 `rules` 中设为 `"off"` 或调整严重级别。
 
 ## 7. 版本与变更
-- 当前规则版本参考包版本：`auto-cr-rules@2.0.121`
+- 当前规则版本参考包版本：`auto-cr-rules@2.0.124`
 - 变更记录：
   - 2.0.121：新增规则，检测热路径中用常量模式构造正则。
+  - 2.0.124：经可选链调用的数组高阶方法（`items?.map(...)`）与被括号、TS 断言包裹的回调同样计入热路径。
 
 ## 8. 参考资料
 - MDN：RegExp() constructor：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/RegExp
